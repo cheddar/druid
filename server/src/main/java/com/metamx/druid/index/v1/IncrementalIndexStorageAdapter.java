@@ -243,7 +243,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                         final String dimensionName = dimension.toLowerCase();
                         final IncrementalIndex.DimDim dimValLookup = index.getDimension(dimensionName);
                         if (dimValLookup == null) {
-                          return null;
+                          return new NullDimensionSelector();
                         }
 
                         final int maxId = dimValLookup.size();
