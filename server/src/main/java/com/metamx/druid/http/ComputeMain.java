@@ -21,6 +21,7 @@ package com.metamx.druid.http;
 
 import com.metamx.common.lifecycle.Lifecycle;
 import com.metamx.common.logger.Logger;
+import com.metamx.druid.index.v1.serde.ComplexMetricSerdes;
 import com.metamx.druid.log.LogLevelAdjuster;
 
 /**
@@ -35,9 +36,9 @@ public class ComputeMain
 
     Lifecycle lifecycle = new Lifecycle();
 
-    lifecycle.addManagedInstance(
-        ComputeNode.builder().build()
-    );
+    lifecycle.addManagedInstance(ComputeNode.builder().build());
+
+    ComplexMetricSerdes.registerDefaultSerdes();
 
     try {
       lifecycle.start();

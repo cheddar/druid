@@ -26,7 +26,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.common.IAE;
 import com.metamx.common.exception.FormattedException;
-
 import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
@@ -88,6 +87,10 @@ public class MapBasedRow implements Row
     } else {
       throw new IAE("Unknown dim type[%s]", dimValue.getClass());
     }
+  }
+
+  public Object getRaw(String dimension) {
+    return event.get(dimension);
   }
 
   @Override

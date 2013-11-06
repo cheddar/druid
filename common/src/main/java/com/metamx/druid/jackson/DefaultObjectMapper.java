@@ -39,10 +39,12 @@ import com.google.common.base.Throwables;
 import com.metamx.common.Granularity;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
-
+import gnu.trove.map.hash.TIntByteHashMap;
+import org.apache.commons.codec.binary.Base64;
 import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.TimeZone;
 
@@ -58,15 +60,19 @@ public class DefaultObjectMapper extends ObjectMapper
   public DefaultObjectMapper(JsonFactory factory)
   {
     super(factory);
-    SimpleModule serializerModule = new SimpleModule("Druid default serializers", new Version(1, 0, 0, null));
+    SimpleModule serializerModule = new SimpleModule(
+        "Druid default serializers", new Version(1, 0, 0, null)
+    );
     JodaStuff.register(serializerModule);
     serializerModule.addDeserializer(
         Granularity.class,
         new JsonDeserializer<Granularity>()
         {
           @Override
-          public Granularity deserialize(JsonParser jp, DeserializationContext ctxt)
-              throws IOException
+          public Granularity deserialize(
+              JsonParser jp,
+              DeserializationContext ctxt
+          ) throws IOException
           {
             return Granularity.valueOf(jp.getText().toUpperCase());
           }
@@ -77,15 +83,21 @@ public class DefaultObjectMapper extends ObjectMapper
         new JsonDeserializer<DateTimeZone>()
         {
           @Override
-          public DateTimeZone deserialize(JsonParser jp, DeserializationContext ctxt)
-              throws IOException
+          public DateTimeZone deserialize(
+              JsonParser jp,
+              DeserializationContext ctxt
+          ) throws IOException
           {
             String tzId = jp.getText();
             try {
               return DateTimeZone.forID(tzId);
-            } catch(IllegalArgumentException e) {
+            }
+            catch (IllegalArgumentException e) {
               // also support Java timezone strings
-              return DateTimeZone.forTimeZone(TimeZone.getTimeZone(tzId));
+              return DateTimeZone.forTimeZone(
+                  TimeZone
+                      .getTimeZone(tzId)
+              );
             }
           }
         }
@@ -111,54 +123,133 @@ public class DefaultObjectMapper extends ObjectMapper
         new JsonSerializer<Sequence>()
         {
           @Override
-          public void serialize(Sequence value, final JsonGenerator jgen, SerializerProvider provider)
-              throws IOException, JsonProcessingException
+          public void serialize(
+              Sequence value,
+              final JsonGenerator jgen,
+              SerializerProvider provider
+          ) throws IOException,
+                   JsonProcessingException
           {
             jgen.writeStartArray();
             value.accumulate(
-                null,
-                new Accumulator()
-                {
-                  @Override
-                  public Object accumulate(Object o, Object o1)
-                  {
-                    try {
-                      jgen.writeObject(o1);
-                    }
-                    catch (IOException e) {
-                      throw Throwables.propagate(e);
-                    }
-                    return o;
-                  }
+                null, new Accumulator()
+            {
+              @Override
+              public Object accumulate(Object o, Object o1)
+              {
+                try {
+                  jgen.writeObject(o1);
                 }
+                catch (IOException e) {
+                  throw Throwables.propagate(e);
+                }
+                return o;
+              }
+            }
             );
             jgen.writeEndArray();
           }
         }
     );
-    serializerModule.addSerializer(ByteOrder.class, ToStringSerializer.instance);
+
+    serializerModule.addSerializer(
+        ByteOrder.class,
+        ToStringSerializer.instance
+    );
     serializerModule.addDeserializer(
         ByteOrder.class,
         new JsonDeserializer<ByteOrder>()
         {
           @Override
           public ByteOrder deserialize(
-              JsonParser jp, DeserializationContext ctxt
-          ) throws IOException, JsonProcessingException
+              JsonParser jp,
+              DeserializationContext ctxt
+          ) throws IOException,
+                   JsonProcessingException
           {
-            if (ByteOrder.BIG_ENDIAN.toString().equals(jp.getText())) {
+            if (ByteOrder.BIG_ENDIAN.toString()
+                         .equals(jp.getText())) {
               return ByteOrder.BIG_ENDIAN;
             }
             return ByteOrder.LITTLE_ENDIAN;
           }
         }
     );
+
+    serializerModule.addDeserializer(
+        TIntByteHashMap.class,
+        new JsonDeserializer<TIntByteHashMap>()
+        {
+          @Override
+          public TIntByteHashMap deserialize(
+              JsonParser jp,
+              DeserializationContext ctxt
+          ) throws IOException
+          {
+            byte[] ibmapByte = Base64.decodeBase64(jp.getText());
+
+            ByteBuffer buffer = ByteBuffer.wrap(ibmapByte);
+            int keylength = buffer.getInt();
+            int valuelength = buffer.getInt();
+            if (keylength == 0) {
+              return (new TIntByteHashMap());
+            }
+            int[] keys = new int[keylength];
+            byte[] values = new byte[valuelength];
+
+            for (int i = 0; i < keylength; i++) {
+              keys[i] = buffer.getInt();
+            }
+            buffer.get(values);
+
+            return (new TIntByteHashMap(keys, values));
+          }
+        }
+    );
+
+    serializerModule.addSerializer(
+        TIntByteHashMap.class,
+        new JsonSerializer<TIntByteHashMap>()
+        {
+          @Override
+          public void serialize(
+              TIntByteHashMap ibmap,
+              JsonGenerator jsonGenerator,
+              SerializerProvider serializerProvider
+          )
+              throws IOException, JsonProcessingException
+          {
+            int[] indexesResult = ibmap.keys();
+            byte[] valueResult = ibmap.values();
+            ByteBuffer buffer = ByteBuffer
+                .allocate(
+                    4 * indexesResult.length
+                    + valueResult.length + 8
+                );
+            byte[] result = new byte[4 * indexesResult.length
+                                     + valueResult.length + 8];
+            buffer.putInt((int) indexesResult.length);
+            buffer.putInt((int) valueResult.length);
+            for (int i = 0; i < indexesResult.length; i++) {
+              buffer.putInt(indexesResult[i]);
+            }
+
+            buffer.put(valueResult);
+            buffer.flip();
+            buffer.get(result);
+            String str = Base64.encodeBase64String(result);
+            jsonGenerator.writeString(str);
+          }
+        }
+    );
+
     registerModule(serializerModule);
     registerModule(new GuavaModule());
 
     configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     configure(MapperFeature.AUTO_DETECT_GETTERS, false);
-//    configure(MapperFeature.AUTO_DETECT_CREATORS, false); https://github.com/FasterXML/jackson-databind/issues/170
+    // configure(MapperFeature.AUTO_DETECT_CREATORS, false);
+    // https://github.com/FasterXML/jackson-databind/issues/170
     configure(MapperFeature.AUTO_DETECT_FIELDS, false);
     configure(MapperFeature.AUTO_DETECT_IS_GETTERS, false);
     configure(MapperFeature.AUTO_DETECT_SETTERS, false);

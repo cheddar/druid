@@ -39,6 +39,7 @@ import com.metamx.druid.index.v1.IncrementalIndex;
 import com.metamx.druid.index.v1.IncrementalIndexSchema;
 import com.metamx.druid.index.v1.IndexIO;
 import com.metamx.druid.index.v1.IndexMerger;
+import com.metamx.druid.index.v1.serde.ComplexMetricSerdes;
 import com.metamx.druid.indexer.data.StringInputRowParser;
 import com.metamx.druid.indexer.rollup.DataRollupSpec;
 import com.metamx.druid.input.InputRow;
@@ -87,9 +88,7 @@ public class IndexGeneratorJob implements Jobby
   private final HadoopDruidIndexerConfig config;
   private IndexGeneratorStats jobStats;
 
-  public IndexGeneratorJob(
-      HadoopDruidIndexerConfig config
-  )
+  public IndexGeneratorJob(HadoopDruidIndexerConfig config)
   {
     this.config = config;
     this.jobStats = new IndexGeneratorStats();
@@ -104,8 +103,10 @@ public class IndexGeneratorJob implements Jobby
   {
     try {
       Job job = new Job(
-          new Configuration(),
-          String.format("%s-index-generator-%s", config.getDataSource(), config.getIntervals())
+          new Configuration(), String.format(
+          "%s-index-generator-%s", config.getDataSource(),
+          config.getIntervals()
+      )
       );
 
       job.getConfiguration().set("io.sort.record.percent", "0.23");
@@ -113,7 +114,10 @@ public class IndexGeneratorJob implements Jobby
       for (String propName : System.getProperties().stringPropertyNames()) {
         Configuration conf = job.getConfiguration();
         if (propName.startsWith("hadoop.")) {
-          conf.set(propName.substring("hadoop.".length()), System.getProperty(propName));
+          conf.set(
+              propName.substring("hadoop.".length()),
+              System.getProperty(propName)
+          );
         }
       }
 
@@ -139,12 +143,18 @@ public class IndexGeneratorJob implements Jobby
       job.setJarByClass(IndexGeneratorJob.class);
 
       job.submit();
-      log.info("Job %s submitted, status available at %s", job.getJobName(), job.getTrackingURL());
+      log.info(
+          "Job %s submitted, status available at %s",
+          job.getJobName(), job.getTrackingURL()
+      );
 
       boolean success = job.waitForCompletion(true);
 
-      Counter invalidRowCount = job.getCounters()
-                                   .findCounter(HadoopDruidIndexerConfig.IndexJobCounters.INVALID_ROW_COUNTER);
+      Counter invalidRowCount = job
+          .getCounters()
+          .findCounter(
+              HadoopDruidIndexerConfig.IndexJobCounters.INVALID_ROW_COUNTER
+          );
       jobStats.setInvalidRowCount(invalidRowCount.getValue());
 
       return success;
@@ -154,17 +164,23 @@ public class IndexGeneratorJob implements Jobby
     }
   }
 
-  public static List<DataSegment> getPublishedSegments(HadoopDruidIndexerConfig config)
+  public static List<DataSegment> getPublishedSegments(
+      HadoopDruidIndexerConfig config
+  )
   {
 
     final Configuration conf = new Configuration();
     final ObjectMapper jsonMapper = HadoopDruidIndexerConfig.jsonMapper;
 
-    ImmutableList.Builder<DataSegment> publishedSegmentsBuilder = ImmutableList.builder();
+    ImmutableList.Builder<DataSegment> publishedSegmentsBuilder = ImmutableList
+        .builder();
 
     for (String propName : System.getProperties().stringPropertyNames()) {
       if (propName.startsWith("hadoop.")) {
-        conf.set(propName.substring("hadoop.".length()), System.getProperty(propName));
+        conf.set(
+            propName.substring("hadoop.".length()),
+            System.getProperty(propName)
+        );
       }
     }
 
@@ -174,9 +190,14 @@ public class IndexGeneratorJob implements Jobby
       FileSystem fs = descriptorInfoDir.getFileSystem(conf);
 
       for (FileStatus status : fs.listStatus(descriptorInfoDir)) {
-        final DataSegment segment = jsonMapper.readValue(fs.open(status.getPath()), DataSegment.class);
+        final DataSegment segment = jsonMapper.readValue(
+            fs.open(status.getPath()), DataSegment.class
+        );
         publishedSegmentsBuilder.add(segment);
-        log.info("Adding segment %s to the list of published segments", segment.getIdentifier());
+        log.info(
+            "Adding segment %s to the list of published segments",
+            segment.getIdentifier()
+        );
       }
     }
     catch (IOException e) {
@@ -187,15 +208,13 @@ public class IndexGeneratorJob implements Jobby
     return publishedSegments;
   }
 
-  public static class IndexGeneratorMapper extends HadoopDruidIndexerMapper<BytesWritable, Text>
+  public static class IndexGeneratorMapper extends
+      HadoopDruidIndexerMapper<BytesWritable, Text>
 
   {
     @Override
-    protected void innerMap(
-        InputRow inputRow,
-        Text text,
-        Context context
-    ) throws IOException, InterruptedException
+    protected void innerMap(InputRow inputRow, Text text, Context context)
+        throws IOException, InterruptedException
     {
       // Group by bucket, sort by timestamp
       final Optional<Bucket> bucket = getConfig().getBucket(inputRow);
@@ -206,43 +225,54 @@ public class IndexGeneratorJob implements Jobby
 
       context.write(
           new SortableBytes(
-              bucket.get().toGroupKey(),
-              Longs.toByteArray(inputRow.getTimestampFromEpoch())
-          ).toBytesWritable(),
-          text
+              bucket.get().toGroupKey(), Longs
+              .toByteArray(inputRow.getTimestampFromEpoch())
+          )
+              .toBytesWritable(), text
       );
     }
   }
 
-  public static class IndexGeneratorPartitioner extends Partitioner<BytesWritable, Text>
+  public static class IndexGeneratorPartitioner extends
+      Partitioner<BytesWritable, Text>
   {
 
     @Override
-    public int getPartition(BytesWritable bytesWritable, Text text, int numPartitions)
+    public int getPartition(
+        BytesWritable bytesWritable, Text text,
+        int numPartitions
+    )
     {
       final ByteBuffer bytes = ByteBuffer.wrap(bytesWritable.getBytes());
       bytes.position(4); // Skip length added by SortableBytes
       int shardNum = bytes.getInt();
 
       if (shardNum >= numPartitions) {
-        throw new ISE("Not enough partitions, shard[%,d] >= numPartitions[%,d]", shardNum, numPartitions);
+        throw new ISE(
+            "Not enough partitions, shard[%,d] >= numPartitions[%,d]",
+            shardNum, numPartitions
+        );
       }
 
       return shardNum;
     }
   }
 
-  public static class IndexGeneratorReducer extends Reducer<BytesWritable, Text, BytesWritable, Text>
+  public static class IndexGeneratorReducer extends
+      Reducer<BytesWritable, Text, BytesWritable, Text>
   {
     private HadoopDruidIndexerConfig config;
     private List<String> metricNames = Lists.newArrayList();
     private StringInputRowParser parser;
 
     @Override
-    protected void setup(Context context)
-        throws IOException, InterruptedException
+    protected void setup(Context context) throws IOException,
+                                                 InterruptedException
     {
-      config = HadoopDruidIndexerConfig.fromConfiguration(context.getConfiguration());
+      config = HadoopDruidIndexerConfig.fromConfiguration(
+          context
+              .getConfiguration()
+      );
 
       for (AggregatorFactory factory : config.getRollupSpec().getAggs()) {
         metricNames.add(factory.getName().toLowerCase());
@@ -253,13 +283,17 @@ public class IndexGeneratorJob implements Jobby
 
     @Override
     protected void reduce(
-        BytesWritable key, Iterable<Text> values, final Context context
+        BytesWritable key, Iterable<Text> values,
+        final Context context
     ) throws IOException, InterruptedException
     {
+      ComplexMetricSerdes.registerDefaultSerdes();
+
       SortableBytes keyBytes = SortableBytes.fromBytesWritable(key);
       Bucket bucket = Bucket.fromGroupKey(keyBytes.getGroupKey()).lhs;
 
-      final Interval interval = config.getGranularitySpec().bucketInterval(bucket.time).get();
+      final Interval interval = config.getGranularitySpec()
+                                      .bucketInterval(bucket.time).get();
       final DataRollupSpec rollupSpec = config.getRollupSpec();
       final AggregatorFactory[] aggs = rollupSpec.getAggs().toArray(
           new AggregatorFactory[rollupSpec.getAggs().size()]
@@ -281,7 +315,10 @@ public class IndexGeneratorJob implements Jobby
 
       for (final Text value : values) {
         context.progress();
-        final InputRow inputRow = index.getSpatialDimensionRowFormatter().formatRow(parser.parse(value.toString()));
+        final InputRow inputRow = index
+            .getSpatialDimensionRowFormatter().formatRow(
+                parser.parse(value.toString())
+            );
         allDimensionNames.addAll(inputRow.getDimensions());
 
         int numRows = index.add(inputRow);
@@ -289,26 +326,30 @@ public class IndexGeneratorJob implements Jobby
 
         if (numRows >= rollupSpec.rowFlushBoundary) {
           log.info(
-              "%,d lines to %,d rows in %,d millis",
-              lineCount - runningTotalLineCount,
-              numRows,
+              "%,d lines to %,d rows in %,d millis", lineCount
+                                                     - runningTotalLineCount, numRows,
               System.currentTimeMillis() - startTime
           );
           runningTotalLineCount = lineCount;
 
-          final File file = new File(baseFlushFile, String.format("index%,05d", indexCount));
+          final File file = new File(
+              baseFlushFile, String.format(
+              "index%,05d", indexCount
+          )
+          );
           toMerge.add(file);
 
           context.progress();
           IndexMerger.persist(
-              index, interval, file, new IndexMerger.ProgressIndicator()
-          {
-            @Override
-            public void progress()
-            {
-              context.progress();
-            }
-          }
+              index, interval, file,
+              new IndexMerger.ProgressIndicator()
+              {
+                @Override
+                public void progress()
+                {
+                  context.progress();
+                }
+              }
           );
           index = makeIncrementalIndex(bucket, aggs);
 
@@ -319,37 +360,42 @@ public class IndexGeneratorJob implements Jobby
 
       log.info("%,d lines completed.", lineCount);
 
-      List<QueryableIndex> indexes = Lists.newArrayListWithCapacity(indexCount);
+      List<QueryableIndex> indexes = Lists
+          .newArrayListWithCapacity(indexCount);
       final File mergedBase;
 
       if (toMerge.size() == 0) {
         if (index.isEmpty()) {
-          throw new IAE("If you try to persist empty indexes you are going to have a bad time");
+          throw new IAE(
+              "If you try to persist empty indexes you are going to have a bad time"
+          );
         }
 
         mergedBase = new File(baseFlushFile, "merged");
         IndexMerger.persist(
-            index, interval, mergedBase, new IndexMerger.ProgressIndicator()
-        {
-          @Override
-          public void progress()
-          {
-            context.progress();
-          }
-        }
+            index, interval, mergedBase,
+            new IndexMerger.ProgressIndicator()
+            {
+              @Override
+              public void progress()
+              {
+                context.progress();
+              }
+            }
         );
       } else {
         if (!index.isEmpty()) {
           final File finalFile = new File(baseFlushFile, "final");
           IndexMerger.persist(
-              index, interval, finalFile, new IndexMerger.ProgressIndicator()
-          {
-            @Override
-            public void progress()
-            {
-              context.progress();
-            }
-          }
+              index, interval, finalFile,
+              new IndexMerger.ProgressIndicator()
+              {
+                @Override
+                public void progress()
+                {
+                  context.progress();
+                }
+              }
           );
           toMerge.add(finalFile);
         }
@@ -358,36 +404,56 @@ public class IndexGeneratorJob implements Jobby
           indexes.add(IndexIO.loadIndex(file));
         }
         mergedBase = IndexMerger.mergeQueryableIndex(
-            indexes, aggs, new File(baseFlushFile, "merged"), new IndexMerger.ProgressIndicator()
-        {
-          @Override
-          public void progress()
-          {
-            context.progress();
-          }
-        }
+            indexes, aggs,
+            new File(baseFlushFile, "merged"),
+            new IndexMerger.ProgressIndicator()
+            {
+              @Override
+              public void progress()
+              {
+                context.progress();
+              }
+            }
         );
       }
 
-      serializeOutIndex(context, bucket, mergedBase, Lists.newArrayList(allDimensionNames));
+      serializeOutIndex(
+          context, bucket, mergedBase,
+          Lists.newArrayList(allDimensionNames)
+      );
 
       for (File file : toMerge) {
         FileUtils.deleteDirectory(file);
       }
     }
 
-    private void serializeOutIndex(Context context, Bucket bucket, File mergedBase, List<String> dimensionNames)
+    private void serializeOutIndex(
+        Context context, Bucket bucket,
+        File mergedBase, List<String> dimensionNames
+    )
         throws IOException
     {
-      Interval interval = config.getGranularitySpec().bucketInterval(bucket.time).get();
+      Interval interval = config.getGranularitySpec()
+                                .bucketInterval(bucket.time).get();
 
       int attemptNumber = context.getTaskAttemptID().getId();
 
       FileSystem fileSystem = FileSystem.get(context.getConfiguration());
-      Path indexBasePath = config.makeSegmentOutputPath(fileSystem, bucket);
-      Path indexZipFilePath = new Path(indexBasePath, String.format("index.zip.%s", attemptNumber));
-      final FileSystem infoFS = config.makeDescriptorInfoDir().getFileSystem(context.getConfiguration());
-      final FileSystem outputFS = indexBasePath.getFileSystem(context.getConfiguration());
+      Path indexBasePath = config.makeSegmentOutputPath(
+          fileSystem,
+          bucket
+      );
+      Path indexZipFilePath = new Path(
+          indexBasePath, String.format(
+          "index.zip.%s", attemptNumber
+      )
+      );
+      final FileSystem infoFS = config.makeDescriptorInfoDir()
+                                      .getFileSystem(context.getConfiguration());
+      final FileSystem outputFS = indexBasePath.getFileSystem(
+          context
+              .getConfiguration()
+      );
 
       outputFS.mkdirs(indexBasePath);
 
@@ -395,7 +461,11 @@ public class IndexGeneratorJob implements Jobby
       ZipOutputStream out = null;
       long size = 0;
       try {
-        out = new ZipOutputStream(new BufferedOutputStream(outputFS.create(indexZipFilePath), 256 * 1024));
+        out = new ZipOutputStream(
+            new BufferedOutputStream(
+                outputFS.create(indexZipFilePath), 256 * 1024
+            )
+        );
 
         List<String> filesToCopy = Arrays.asList(mergedBase.list());
 
@@ -421,8 +491,9 @@ public class IndexGeneratorJob implements Jobby
       if (outputFS instanceof NativeS3FileSystem) {
         loadSpec = ImmutableMap.<String, Object>of(
             "type", "s3_zip",
-            "bucket", indexOutURI.getHost(),
-            "key", indexOutURI.getPath().substring(1) // remove the leading "/"
+            "bucket", indexOutURI.getHost(), "key", indexOutURI
+            .getPath().substring(1) // remove the leading
+            // "/"
         );
       } else if (outputFS instanceof LocalFileSystem) {
         loadSpec = ImmutableMap.<String, Object>of(
@@ -440,25 +511,29 @@ public class IndexGeneratorJob implements Jobby
 
       DataSegment segment = new DataSegment(
           config.getDataSource(),
-          interval,
-          config.getVersion(),
-          loadSpec,
-          dimensionNames,
-          metricNames,
-          config.getShardSpec(bucket).getActualSpec(),
-          IndexIO.getVersionFromDir(mergedBase),
-          size
+          interval, config.getVersion(), loadSpec, dimensionNames,
+          metricNames, config.getShardSpec(bucket).getActualSpec(),
+          IndexIO.getVersionFromDir(mergedBase), size
       );
 
       // retry 1 minute
       boolean success = false;
       for (int i = 0; i < 6; i++) {
-        if (renameIndexFiles(infoFS, outputFS, indexBasePath, indexZipFilePath, finalIndexZipFilePath, segment)) {
-          log.info("Successfully renamed [%s] to [%s]", indexZipFilePath, finalIndexZipFilePath);
+        if (renameIndexFiles(
+            infoFS, outputFS, indexBasePath,
+            indexZipFilePath, finalIndexZipFilePath, segment
+        )) {
+          log.info(
+              "Successfully renamed [%s] to [%s]",
+              indexZipFilePath, finalIndexZipFilePath
+          );
           success = true;
           break;
         } else {
-          log.info("Failed to rename [%s] to [%s]", indexZipFilePath, finalIndexZipFilePath);
+          log.info(
+              "Failed to rename [%s] to [%s]", indexZipFilePath,
+              finalIndexZipFilePath
+          );
           try {
             Thread.sleep(10000);
             context.progress();
@@ -475,15 +550,21 @@ public class IndexGeneratorJob implements Jobby
 
       if (!success) {
         if (!outputFS.exists(indexZipFilePath)) {
-          throw new ISE("File [%s] does not exist after retry loop.", indexZipFilePath.toUri().getPath());
+          throw new ISE(
+              "File [%s] does not exist after retry loop.",
+              indexZipFilePath.toUri().getPath()
+          );
         }
 
-        if (outputFS.getFileStatus(indexZipFilePath).getLen() == outputFS.getFileStatus(finalIndexZipFilePath)
-                                                                         .getLen()) {
+        if (outputFS.getFileStatus(indexZipFilePath).getLen() == outputFS
+            .getFileStatus(finalIndexZipFilePath).getLen()) {
           outputFS.delete(indexZipFilePath, true);
         } else {
           outputFS.delete(finalIndexZipFilePath, true);
-          if (!renameIndexFiles(infoFS, outputFS, indexBasePath, indexZipFilePath, finalIndexZipFilePath, segment)) {
+          if (!renameIndexFiles(
+              infoFS, outputFS, indexBasePath,
+              indexZipFilePath, finalIndexZipFilePath, segment
+          )) {
             throw new ISE(
                 "Files [%s] and [%s] are different, but still cannot rename after retry loop",
                 indexZipFilePath.toUri().getPath(),
@@ -496,29 +577,30 @@ public class IndexGeneratorJob implements Jobby
 
     private boolean renameIndexFiles(
         FileSystem intermediateFS,
-        FileSystem outputFS,
-        Path indexBasePath,
-        Path indexZipFilePath,
-        Path finalIndexZipFilePath,
-        DataSegment segment
+        FileSystem outputFS, Path indexBasePath, Path indexZipFilePath,
+        Path finalIndexZipFilePath, DataSegment segment
     )
         throws IOException
     {
       final boolean needRename;
 
       if (outputFS.exists(finalIndexZipFilePath)) {
-        // NativeS3FileSystem.rename won't overwrite, so we might need to delete the old index first
-        final FileStatus zipFile = outputFS.getFileStatus(indexZipFilePath);
-        final FileStatus finalIndexZipFile = outputFS.getFileStatus(finalIndexZipFilePath);
+        // NativeS3FileSystem.rename won't overwrite, so we might need
+        // to delete the old index first
+        final FileStatus zipFile = outputFS
+            .getFileStatus(indexZipFilePath);
+        final FileStatus finalIndexZipFile = outputFS
+            .getFileStatus(finalIndexZipFilePath);
 
-        if (zipFile.getModificationTime() >= finalIndexZipFile.getModificationTime()
+        if (zipFile.getModificationTime() >= finalIndexZipFile
+            .getModificationTime()
             || zipFile.getLen() != finalIndexZipFile.getLen()) {
           log.info(
               "File[%s / %s / %sB] existed, but wasn't the same as [%s / %s / %sB]",
-              finalIndexZipFile.getPath(),
-              new DateTime(finalIndexZipFile.getModificationTime()),
-              finalIndexZipFile.getLen(),
-              zipFile.getPath(),
+              finalIndexZipFile.getPath(), new DateTime(
+              finalIndexZipFile.getModificationTime()
+          ),
+              finalIndexZipFile.getLen(), zipFile.getPath(),
               new DateTime(zipFile.getModificationTime()),
               zipFile.getLen()
           );
@@ -527,8 +609,9 @@ public class IndexGeneratorJob implements Jobby
         } else {
           log.info(
               "File[%s / %s / %sB] existed and will be kept",
-              finalIndexZipFile.getPath(),
-              new DateTime(finalIndexZipFile.getModificationTime()),
+              finalIndexZipFile.getPath(), new DateTime(
+              finalIndexZipFile.getModificationTime()
+          ),
               finalIndexZipFile.getLen()
           );
           needRename = false;
@@ -537,11 +620,18 @@ public class IndexGeneratorJob implements Jobby
         needRename = true;
       }
 
-      if (needRename && !outputFS.rename(indexZipFilePath, finalIndexZipFilePath)) {
+      if (needRename
+          && !outputFS
+          .rename(indexZipFilePath, finalIndexZipFilePath)) {
         return false;
       }
 
-      writeSegmentDescriptor(outputFS, segment, new Path(indexBasePath, "descriptor.json"));
+      writeSegmentDescriptor(
+          outputFS, segment, new Path(
+          indexBasePath,
+          "descriptor.json"
+      )
+      );
       final Path descriptorPath = config.makeDescriptorInfoPath(segment);
       log.info("Writing descriptor to path[%s]", descriptorPath);
       intermediateFS.mkdirs(descriptorPath.getParent());
@@ -550,16 +640,22 @@ public class IndexGeneratorJob implements Jobby
       return true;
     }
 
-    private void writeSegmentDescriptor(FileSystem outputFS, DataSegment segment, Path descriptorPath)
-        throws IOException
+    private void writeSegmentDescriptor(
+        FileSystem outputFS,
+        DataSegment segment, Path descriptorPath
+    ) throws IOException
     {
       if (outputFS.exists(descriptorPath)) {
         outputFS.delete(descriptorPath, false);
       }
 
-      final FSDataOutputStream descriptorOut = outputFS.create(descriptorPath);
+      final FSDataOutputStream descriptorOut = outputFS
+          .create(descriptorPath);
       try {
-        HadoopDruidIndexerConfig.jsonMapper.writeValue(descriptorOut, segment);
+        HadoopDruidIndexerConfig.jsonMapper.writeValue(
+            descriptorOut,
+            segment
+        );
       }
       finally {
         descriptorOut.close();
@@ -567,7 +663,8 @@ public class IndexGeneratorJob implements Jobby
     }
 
     private long copyFile(
-        Context context, ZipOutputStream out, File mergedBase, final String filename
+        Context context, ZipOutputStream out,
+        File mergedBase, final String filename
     ) throws IOException
     {
       createNewZipEntry(out, filename);
@@ -598,19 +695,26 @@ public class IndexGeneratorJob implements Jobby
       return numRead;
     }
 
-    private IncrementalIndex makeIncrementalIndex(Bucket theBucket, AggregatorFactory[] aggs)
+    private IncrementalIndex makeIncrementalIndex(
+        Bucket theBucket,
+        AggregatorFactory[] aggs
+    )
     {
       return new IncrementalIndex(
           new IncrementalIndexSchema.Builder()
               .withMinTimestamp(theBucket.time.getMillis())
-              .withSpatialDimensions(config.getDataSpec().getSpatialDimensions())
-              .withQueryGranularity(config.getRollupSpec().getRollupGranularity())
-              .withMetrics(aggs)
-              .build()
+              .withSpatialDimensions(
+                  config.getDataSpec().getSpatialDimensions()
+              )
+              .withQueryGranularity(
+                  config.getRollupSpec().getRollupGranularity()
+              )
+              .withMetrics(aggs).build()
       );
     }
 
-    private void createNewZipEntry(ZipOutputStream out, String name) throws IOException
+    private void createNewZipEntry(ZipOutputStream out, String name)
+        throws IOException
     {
       log.info("Creating new ZipEntry[%s]", name);
       out.putNextEntry(new ZipEntry(name));
