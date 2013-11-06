@@ -19,6 +19,7 @@
 
 package com.metamx.druid.jackson;
 
+import com.clearspring.analytics.stream.cardinality.HyperLogLogPlus;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -239,6 +240,18 @@ public class DefaultObjectMapper extends ObjectMapper
             buffer.get(result);
             String str = Base64.encodeBase64String(result);
             jsonGenerator.writeString(str);
+          }
+        }
+    );
+
+    serializerModule.addSerializer(
+        HyperLogLogPlus.class,
+        new JsonSerializer<HyperLogLogPlus>()
+        {
+          @Override
+          public void serialize(HyperLogLogPlus hyperLogLogPlus, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException, JsonProcessingException
+          {
+            jsonGenerator.writeObject(hyperLogLogPlus.getBytes());
           }
         }
     );
