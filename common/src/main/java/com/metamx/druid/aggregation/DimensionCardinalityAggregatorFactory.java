@@ -9,6 +9,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
+import com.metamx.common.ISE;
 import com.metamx.druid.processing.ColumnSelectorFactory;
 import com.metamx.druid.processing.ObjectColumnSelector;
 import org.apache.commons.codec.binary.Base64;
@@ -109,7 +110,18 @@ public class DimensionCardinalityAggregatorFactory implements AggregatorFactory
   @Override
   public Object deserialize(Object object)
   {
-    return DimensionCardinalityAggregator.fromBytes(Base64.decodeBase64((String) object));
+    final byte[] bytes;
+    if (object instanceof String) {
+      bytes = Base64.decodeBase64((String) object);
+    }
+    else if (object instanceof byte[]) {
+      bytes = (byte[]) object;
+    }
+    else {
+      throw new ISE("Cannot deserialize class[%s]", object.getClass());
+    }
+
+    return DimensionCardinalityAggregator.fromBytes(bytes);
   }
 
   @Override
