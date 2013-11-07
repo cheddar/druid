@@ -5,6 +5,7 @@ import com.clearspring.analytics.stream.cardinality.HyperLogLogPlus;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Charsets;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
@@ -32,6 +33,9 @@ public class DimensionCardinalityAggregatorFactory implements AggregatorFactory
       @JsonProperty("fieldName") String fieldName
   )
   {
+    Preconditions.checkNotNull(name, "must specify a name on DimensionCardinality aggregators");
+    Preconditions.checkNotNull(fieldName, "must specify a fieldName on DimensionCardinality aggregators");
+
     this.name = name;
     this.fieldName = fieldName;
   }
@@ -153,5 +157,14 @@ public class DimensionCardinalityAggregatorFactory implements AggregatorFactory
   public Object getAggregatorStartValue()
   {
     return DimensionCardinalityAggregator.makeHllPlus();
+  }
+
+  @Override
+  public String toString()
+  {
+    return "DimensionCardinalityAggregatorFactory{" +
+        "name='" + name + '\'' +
+        ", fieldName='" + fieldName + '\'' +
+        '}';
   }
 }
