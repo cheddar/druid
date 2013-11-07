@@ -47,7 +47,7 @@ import java.util.List;
     @JsonSubTypes.Type(name="hyperloglog", value=HyperloglogAggregatorFactory.class),
     @JsonSubTypes.Type(name="adaptiveCounting", value=AdaptiveCountingAggregatorFactory.class),
     @JsonSubTypes.Type(name="histogram", value=HistogramAggregatorFactory.class),
-    @JsonSubTypes.Type(name="dimCardinality", value=DimensionCardinalityAggregator.class)
+    @JsonSubTypes.Type(name="dimCardinality", value=DimensionCardinalityAggregatorFactory.class)
 })
 public interface AggregatorFactory
 {
