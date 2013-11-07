@@ -74,7 +74,7 @@ public class DimensionCardinalityAggregatorFactory implements AggregatorFactory
       };
     }
 
-    return new DimensionCardinalityBufferAggregator(name, selector);
+    return new DimensionCardinalityBufferAggregator(selector);
   }
 
   @Override

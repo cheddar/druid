@@ -23,15 +23,12 @@ public class DimensionCardinalityBufferAggregator implements BufferAggregator
     }
   }
 
-  private final String name;
   private final ObjectColumnSelector selector;
 
   public DimensionCardinalityBufferAggregator(
-      String name,
       ObjectColumnSelector selector
   )
   {
-    this.name = name;
     this.selector = selector;
   }
 
