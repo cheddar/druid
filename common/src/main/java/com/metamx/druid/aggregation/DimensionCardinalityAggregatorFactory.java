@@ -119,9 +119,16 @@ public class DimensionCardinalityAggregatorFactory implements AggregatorFactory
   }
 
   @Override
+  @JsonProperty
   public String getName()
   {
     return name;
+  }
+
+  @JsonProperty
+  public String getFieldName()
+  {
+    return fieldName;
   }
 
   @Override
