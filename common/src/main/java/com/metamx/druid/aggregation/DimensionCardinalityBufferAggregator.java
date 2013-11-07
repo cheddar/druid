@@ -13,7 +13,15 @@ import java.util.List;
  */
 public class DimensionCardinalityBufferAggregator implements BufferAggregator
 {
-  private static final byte[] emptyBytes = new byte[DimensionCardinalityAggregator.MAX_SIZE_BYTES];
+  private static final byte[] emptyBytes;
+
+  static {
+    try {
+      emptyBytes = DimensionCardinalityAggregator.makeHllPlus().getBytes();
+    } catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
+  }
 
   private final String name;
   private final ObjectColumnSelector selector;
@@ -32,6 +40,7 @@ public class DimensionCardinalityBufferAggregator implements BufferAggregator
   {
     ByteBuffer duplicate = buf.duplicate();
     duplicate.position(position);
+    duplicate.putInt(emptyBytes.length);
     duplicate.put(emptyBytes);
   }
 
@@ -49,7 +58,7 @@ public class DimensionCardinalityBufferAggregator implements BufferAggregator
       hll.offer(obj);
     }
 
-    writeHll(buf, hll);
+    writeHll(buf, position, hll);
   }
 
   @Override
@@ -75,11 +84,12 @@ public class DimensionCardinalityBufferAggregator implements BufferAggregator
   {
   }
 
-  private void writeHll(ByteBuffer buf, HyperLogLogPlus hll)
+  private void writeHll(ByteBuffer buf, int position, HyperLogLogPlus hll)
   {
     try {
       byte[] outBytes = hll.getBytes();
       ByteBuffer outBuf = buf.duplicate();
+      outBuf.position(position);
       outBuf.putInt(outBytes.length);
       outBuf.put(outBytes);
     } catch (IOException e) {
