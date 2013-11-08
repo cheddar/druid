@@ -27,6 +27,10 @@ public class ComplexMetricSerdes
   {
     registerHyperloglogSerde();
     registerCardinalitySerde();
+
+    if (ComplexMetrics.getSerdeForType("hll+") == null) {
+      ComplexMetrics.registerSerde("hll+", new HllPlusComplexMetricSerde());
+    }
   }
 
   public static void registerHyperloglogSerde()

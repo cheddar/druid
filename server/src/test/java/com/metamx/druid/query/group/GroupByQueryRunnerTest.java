@@ -79,9 +79,7 @@ public class GroupByQueryRunnerTest
                 }
             )
         ),
-        new GroupByQueryRunnerFactoryConfig()
-        {
-        }
+        new GroupByQueryRunnerFactoryConfig(){}
     );
 
     return Lists.newArrayList(
