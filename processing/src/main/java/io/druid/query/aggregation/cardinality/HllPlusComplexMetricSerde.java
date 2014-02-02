@@ -104,13 +104,7 @@ public class HllPlusComplexMetricSerde extends ComplexMetricSerde
     @Override
     public HyperLogLogPlus fromByteBuffer(ByteBuffer buffer, int numBytes)
     {
-      byte[] bytes = new byte[numBytes];
-      buffer.get(bytes);
-      try {
-        return HyperLogLogPlus.Builder.build(bytes);
-      } catch (IOException e) {
-        throw Throwables.propagate(e);
-      }
+        return HyperLogLogPlus.Builder.build(buffer);
     }
 
     @Override

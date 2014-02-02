@@ -39,8 +39,6 @@ public class DimensionCardinalityAggregator implements Aggregator
       }
       retVal.addAll(fromBytes);
       return retVal;
-    } catch (IOException e) {
-      throw Throwables.propagate(e);
     } catch (CardinalityMergeException e) {
       throw Throwables.propagate(e);
     }

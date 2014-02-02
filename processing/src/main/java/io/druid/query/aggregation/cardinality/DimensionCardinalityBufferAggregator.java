@@ -69,7 +69,6 @@ public class DimensionCardinalityBufferAggregator implements BufferAggregator
       throw new UnsupportedOperationException(String.format("Unexpected object type[%s].", obj.getClass()));
     }
 
-    writeHll(buf, position, hll);
   }
 
   @Override
@@ -78,10 +77,9 @@ public class DimensionCardinalityBufferAggregator implements BufferAggregator
     ByteBuffer duplicate = buf.duplicate();
     duplicate.position(position);
     int size = duplicate.getInt();
-
-    byte[] bytes = new byte[size];
-    duplicate.get(bytes);
-    return DimensionCardinalityAggregator.fromBytes(bytes);
+    
+    //return DimensionCardinalityAggregator.fromBytes(duplicate);
+    return HyperLogLogPlus.Builder.build(duplicate);
   }
 
   @Override
@@ -95,16 +93,4 @@ public class DimensionCardinalityBufferAggregator implements BufferAggregator
   {
   }
 
-  private void writeHll(ByteBuffer buf, int position, HyperLogLogPlus hll)
-  {
-    try {
-      byte[] outBytes = hll.getBytes();
-      ByteBuffer outBuf = buf.duplicate();
-      outBuf.position(position);
-      outBuf.putInt(outBytes.length);
-      outBuf.put(outBytes);
-    } catch (IOException e) {
-      throw Throwables.propagate(e);
-    }
-  }
 }
