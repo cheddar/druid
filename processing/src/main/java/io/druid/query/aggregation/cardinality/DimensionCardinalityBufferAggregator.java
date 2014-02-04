@@ -75,10 +75,8 @@ public class DimensionCardinalityBufferAggregator implements BufferAggregator
   public Object get(ByteBuffer buf, int position)
   {
     ByteBuffer duplicate = buf.duplicate();
-    duplicate.position(position);
-    int size = duplicate.getInt();
-    
-    //return DimensionCardinalityAggregator.fromBytes(duplicate);
+    duplicate.position(position+4);
+
     return HyperLogLogPlus.Builder.build(duplicate);
   }
 
