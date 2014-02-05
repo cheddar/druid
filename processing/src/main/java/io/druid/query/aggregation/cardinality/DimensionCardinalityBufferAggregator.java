@@ -71,12 +71,9 @@ public class DimensionCardinalityBufferAggregator implements BufferAggregator {
         ByteBuffer duplicate = buf.duplicate();
         duplicate.position(position);
 
-        int size = duplicate.getInt();
-        duplicate.limit(size + position + 4);
+        duplicate.limit(duplicate.getInt() + position + 4);
 
-        ByteBuffer sliceBuff = duplicate.slice();
-
-        return HyperLogLogPlus.Builder.build(sliceBuff);
+        return HyperLogLogPlus.Builder.build(duplicate.slice());
     }
 
     @Override

@@ -97,9 +97,7 @@ public class HllPlusComplexMetricSerde extends ComplexMetricSerde {
             duplicate.position(buffer.position());
             duplicate.limit(numBytes + buffer.position());
 
-            ByteBuffer sliceBuffer = duplicate.slice();
-
-            return HyperLogLogPlus.Builder.build(sliceBuffer);
+            return HyperLogLogPlus.Builder.build(duplicate.slice());
         }
 
         @Override
