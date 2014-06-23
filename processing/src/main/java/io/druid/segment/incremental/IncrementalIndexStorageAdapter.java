@@ -37,6 +37,7 @@ import io.druid.segment.Capabilities;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.FloatColumnSelector;
+import io.druid.segment.NullDimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.TimestampColumnSelector;
@@ -479,6 +480,9 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
     {
       Integer dimIndexObject = index.getDimensionIndex(dimension.toLowerCase());
       if (dimIndexObject == null) {
+        if (value == null || "".equals(value)) {
+          return new BooleanValueMatcher(true);
+        }
         return new BooleanValueMatcher(false);
       }
       String idObject = index.getDimension(dimension.toLowerCase()).get(value);

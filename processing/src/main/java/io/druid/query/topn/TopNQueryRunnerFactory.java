@@ -78,7 +78,7 @@ public class TopNQueryRunnerFactory implements QueryRunnerFactory<Result<TopNRes
       ExecutorService queryExecutor, Iterable<QueryRunner<Result<TopNResultValue>>> queryRunners
   )
   {
-    return new ChainedExecutionQueryRunner<Result<TopNResultValue>>(
+    return new ChainedExecutionQueryRunner<>(
         queryExecutor, toolchest.getOrdering(), queryRunners
     );
   }
