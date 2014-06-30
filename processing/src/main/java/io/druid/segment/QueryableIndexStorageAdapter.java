@@ -21,6 +21,7 @@ package io.druid.segment;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicates;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closeables;
@@ -49,6 +50,14 @@ import java.util.Map;
  */
 public class QueryableIndexStorageAdapter implements StorageAdapter
 {
+  private static void closeQuietly(Closeable closeable) {
+    try {
+      closeable.close();
+    } catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
   private final QueryableIndex index;
 
   public QueryableIndexStorageAdapter(
@@ -108,7 +117,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       return new DateTime(column.getLongSingleValueRow(0));
     }
     finally {
-      Closeables.closeQuietly(column);
+      closeQuietly(column);
     }
   }
 
@@ -121,7 +130,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       return new DateTime(column.getLongSingleValueRow(column.length() - 1));
     }
     finally {
-      Closeables.closeQuietly(column);
+      closeQuietly(column);
     }
   }
 
@@ -532,16 +541,16 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
             @Override
             public void close() throws IOException
             {
-              Closeables.closeQuietly(timestamps);
+              closeQuietly(timestamps);
               for (GenericColumn column : genericColumnCache.values()) {
-                Closeables.closeQuietly(column);
+                closeQuietly(column);
               }
               for (ComplexColumn complexColumn : complexColumnCache.values()) {
-                Closeables.closeQuietly(complexColumn);
+                closeQuietly(complexColumn);
               }
               for (Object column : objectColumnCache.values()) {
                 if(column instanceof Closeable) {
-                  Closeables.closeQuietly((Closeable) column);
+                  closeQuietly((Closeable) column);
                 }
               }
             }
@@ -957,16 +966,16 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
             @Override
             public void close() throws IOException
             {
-              Closeables.closeQuietly(timestamps);
+              closeQuietly(timestamps);
               for (GenericColumn column : genericColumnCache.values()) {
-                Closeables.closeQuietly(column);
+                closeQuietly(column);
               }
               for (ComplexColumn complexColumn : complexColumnCache.values()) {
-                Closeables.closeQuietly(complexColumn);
+                closeQuietly(complexColumn);
               }
               for (Object column : objectColumnCache.values()) {
                 if (column instanceof Closeable) {
-                  Closeables.closeQuietly((Closeable) column);
+                  closeQuietly((Closeable) column);
                 }
               }
             }
