@@ -418,7 +418,12 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                     @Override
                     public Object get()
                     {
-                      final String[] dimVals = currEntry.getKey().getDims()[dimensionIndex];
+                      String[][] dims = currEntry.getKey().getDims();
+                      if (dimensionIndex >= dims.length) {
+                        return null;
+                      }
+
+                      final String[] dimVals = dims[dimensionIndex];
                       if (dimVals == null || dimVals.length == 0) {
                         return null;
                       }
