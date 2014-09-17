@@ -418,7 +418,12 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                     @Override
                     public Object get()
                     {
-                      String[][] dims = currEntry.getKey().getDims();
+                      IncrementalIndex.TimeAndDims key = currEntry.getKey();
+                      if (key == null) {
+                        return null;
+                      }
+
+                      String[][] dims = key.getDims();
                       if (dimensionIndex >= dims.length) {
                         return null;
                       }
@@ -461,7 +466,6 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
 
     public void set(Map.Entry<IncrementalIndex.TimeAndDims, Aggregator[]> currEntry)
     {
-      this.currEntry = currEntry;
       this.currEntry = currEntry;
     }
 
