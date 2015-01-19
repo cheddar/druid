@@ -425,15 +425,6 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                       if(dimensionIndex >= dims.length) {
                         return null;
                       }
-                      final String[] dimVals = dims[dimensionIndex];
-                      if (dimVals.length == 1) {
-                        return dimVals[0];
-                      }
-
-                      String[][] dims = key.getDims();
-                      if (dimensionIndex >= dims.length) {
-                        return null;
-                      }
 
                       final String[] dimVals = dims[dimensionIndex];
                       if (dimVals == null || dimVals.length == 0) {

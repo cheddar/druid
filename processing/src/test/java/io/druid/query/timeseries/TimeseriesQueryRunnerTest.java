@@ -1855,7 +1855,7 @@ public class TimeseriesQueryRunnerTest
             new DateTime("2011-04-01"),
             new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of(
-                    "filteredAgg", 0L,
+                    "filteredAgg", 26L,
                     "addRowsIndexConstant", 12486.361190795898d,
                     "index", 12459.361190795898d,
                     "uniques", 9.019833517963864d,

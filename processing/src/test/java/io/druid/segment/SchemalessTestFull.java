@@ -53,6 +53,7 @@ import io.druid.query.topn.TopNQueryBuilder;
 import io.druid.query.topn.TopNResultValue;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -838,7 +839,7 @@ public class SchemalessTestFull
     );
   }
 
-  @Test
+  @Test @Ignore
   public void testEmptySchemas()
   {
     List<Result<TimeseriesResultValue>> expectedTimeseriesResults = Arrays.asList(

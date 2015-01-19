@@ -933,15 +933,15 @@ public class GroupByQueryRunnerTest
     final GroupByQuery query = builder.build();
 
     List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "index", null, "quality", "automotive", "rows", 2L),
-        createExpectedRow("2011-04-01", "index", null, "quality", "business", "rows", 2L),
-        createExpectedRow("2011-04-01", "index", null, "quality", "entertainment", "rows", 2L),
-        createExpectedRow("2011-04-01", "index", null, "quality", "health", "rows", 2L),
-        createExpectedRow("2011-04-01", "index", null, "quality", "mezzanine", "rows", 6L),
-        createExpectedRow("2011-04-01", "index", null, "quality", "news", "rows", 2L),
-        createExpectedRow("2011-04-01", "index", null, "quality", "premium", "rows", 6L),
-        createExpectedRow("2011-04-01", "index", null, "quality", "technology", "rows", 2L),
-        createExpectedRow("2011-04-01", "index", null, "quality", "travel", "rows", 2L)
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "index", null, "quality", "automotive", "rows", 2L),
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "index", null, "quality", "business", "rows", 2L),
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "index", null, "quality", "entertainment", "rows", 2L),
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "index", null, "quality", "health", "rows", 2L),
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "index", null, "quality", "mezzanine", "rows", 6L),
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "index", null, "quality", "news", "rows", 2L),
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "index", null, "quality", "premium", "rows", 6L),
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "index", null, "quality", "technology", "rows", 2L),
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "index", null, "quality", "travel", "rows", 2L)
     );
 
     TestHelper.assertExpectedObjects(expectedResults, runner.run(query), "normal");
@@ -986,15 +986,15 @@ public class GroupByQueryRunnerTest
     final GroupByQuery query = builder.build();
 
     List<Row> expectedResults = Arrays.asList(
-        createExpectedRow("2011-04-01", "billy", null, "quality", "automotive", "rows", 2L),
-        createExpectedRow("2011-04-01", "billy", null, "quality", "business", "rows", 2L),
-        createExpectedRow("2011-04-01", "billy", null, "quality", "entertainment", "rows", 2L),
-        createExpectedRow("2011-04-01", "billy", null, "quality", "health", "rows", 2L),
-        createExpectedRow("2011-04-01", "billy", null, "quality", "mezzanine", "rows", 6L),
-        createExpectedRow("2011-04-01", "billy", null, "quality", "news", "rows", 2L),
-        createExpectedRow("2011-04-01", "billy", null, "quality", "premium", "rows", 6L),
-        createExpectedRow("2011-04-01", "billy", null, "quality", "technology", "rows", 2L),
-        createExpectedRow("2011-04-01", "billy", null, "quality", "travel", "rows", 2L)
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "billy", null, "quality", "automotive", "rows", 2L),
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "billy", null, "quality", "business", "rows", 2L),
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "billy", null, "quality", "entertainment", "rows", 2L),
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "billy", null, "quality", "health", "rows", 2L),
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "billy", null, "quality", "mezzanine", "rows", 6L),
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "billy", null, "quality", "news", "rows", 2L),
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "billy", null, "quality", "premium", "rows", 6L),
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "billy", null, "quality", "technology", "rows", 2L),
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "billy", null, "quality", "travel", "rows", 2L)
     );
 
     TestHelper.assertExpectedObjects(expectedResults, runner.run(query), "normal");

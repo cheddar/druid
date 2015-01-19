@@ -47,6 +47,6 @@ public class NullDimensionSelector implements DimensionSelector
   @Override
   public int lookupId(String name)
   {
-    return 0;
+    return name == null ? 0 : -1;
   }
 }
