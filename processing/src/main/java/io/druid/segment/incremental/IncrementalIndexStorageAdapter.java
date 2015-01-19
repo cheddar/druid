@@ -134,8 +134,11 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
 
     Interval actualIntervalTmp = interval;
 
+    final Interval dataInterval = new Interval(
+        getMinTime().getMillis(),
+        gran.next(gran.truncate(getMaxTime().getMillis()))
+    );
 
-    final Interval dataInterval = new Interval(getMinTime().getMillis(), gran.next(getMaxTime().getMillis()));
     if (!actualIntervalTmp.overlaps(dataInterval)) {
       return Sequences.empty();
     }
@@ -418,9 +421,13 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                     @Override
                     public Object get()
                     {
-                      IncrementalIndex.TimeAndDims key = currEntry.getKey();
-                      if (key == null) {
+                      final String[][] dims = currEntry.getKey().getDims();
+                      if(dimensionIndex >= dims.length) {
                         return null;
+                      }
+                      final String[] dimVals = dims[dimensionIndex];
+                      if (dimVals.length == 1) {
+                        return dimVals[0];
                       }
 
                       String[][] dims = key.getDims();
@@ -536,6 +543,8 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
           }
 
           for (String dimVal : dims[dimIndex]) {
+            // using == here instead of .equals() to speed up lookups made possible by
+            // io.druid.segment.incremental.IncrementalIndex.DimDim#poorMansInterning
             if (id == dimVal) {
               return true;
             }

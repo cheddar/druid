@@ -39,7 +39,6 @@ import org.apache.commons.codec.binary.Base64;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
@@ -64,12 +63,12 @@ public class CardinalityAggregatorFactory implements AggregatorFactory
   public CardinalityAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldNames") final List<String> fieldNames,
-      @JsonProperty("byRow") final Boolean byRow
+      @JsonProperty("byRow") final boolean byRow
   )
   {
     this.name = name;
     this.fieldNames = fieldNames;
-    this.byRow = byRow == null ? false : byRow;
+    this.byRow = byRow;
   }
 
   @Override
@@ -204,14 +203,21 @@ public class CardinalityAggregatorFactory implements AggregatorFactory
     return fieldNames;
   }
 
+  @JsonProperty
+  public boolean isByRow()
+  {
+    return byRow;
+  }
+
   @Override
   public byte[] getCacheKey()
   {
     byte[] fieldNameBytes = Joiner.on("\u0001").join(fieldNames).getBytes(Charsets.UTF_8);
 
-    return ByteBuffer.allocate(1 + fieldNameBytes.length)
+    return ByteBuffer.allocate(2 + fieldNameBytes.length)
                      .put(CACHE_TYPE_ID)
                      .put(fieldNameBytes)
+                     .put((byte)(byRow ? 1 : 0))
                      .array();
   }
 
@@ -231,6 +237,40 @@ public class CardinalityAggregatorFactory implements AggregatorFactory
   public Object getAggregatorStartValue()
   {
     return HyperLogLogCollector.makeLatestCollector();
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    CardinalityAggregatorFactory that = (CardinalityAggregatorFactory) o;
+
+    if (byRow != that.byRow) {
+      return false;
+    }
+    if (fieldNames != null ? !fieldNames.equals(that.fieldNames) : that.fieldNames != null) {
+      return false;
+    }
+    if (name != null ? !name.equals(that.name) : that.name != null) {
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
+  public int hashCode()
+  {
+    int result = name != null ? name.hashCode() : 0;
+    result = 31 * result + (fieldNames != null ? fieldNames.hashCode() : 0);
+    result = 31 * result + (byRow ? 1 : 0);
+    return result;
   }
 
   @Override

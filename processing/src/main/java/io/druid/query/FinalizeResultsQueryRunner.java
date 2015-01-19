@@ -28,8 +28,6 @@ import com.metamx.common.guava.Sequences;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.MetricManipulatorFns;
 
-import javax.annotation.Nullable;
-
 /**
  */
 public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
@@ -82,7 +80,7 @@ public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
             throw new ISE("Cannot have a null result!");
           }
 
-          BySegmentResultValueClass<T> resultsClass = result.getValue();
+          BySegmentResultValue<T> resultsClass = result.getValue();
 
           return (T) new Result<BySegmentResultValueClass>(
               result.getTimestamp(),

@@ -19,7 +19,6 @@
 
 package io.druid.indexing.common.task;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -58,6 +57,7 @@ public class TaskSerdeTest
     final IndexTask task = new IndexTask(
         null,
         null,
+        null,
         "foo",
         new UniformGranularitySpec(
             Granularity.DAY,
@@ -90,8 +90,8 @@ public class TaskSerdeTest
     Assert.assertEquals(task.getGroupId(), task2.getGroupId());
     Assert.assertEquals(task.getDataSource(), task2.getDataSource());
     Assert.assertEquals(task.getInterval(), task2.getInterval());
-    Assert.assertTrue(task.getIngestionSchema().getIOConfig().getFirehoseFactory() instanceof LocalFirehoseFactory);
-    Assert.assertTrue(task2.getIngestionSchema().getIOConfig().getFirehoseFactory() instanceof LocalFirehoseFactory);
+    Assert.assertTrue(task.getIngestionSpec().getIOConfig().getFirehoseFactory() instanceof LocalFirehoseFactory);
+    Assert.assertTrue(task2.getIngestionSpec().getIOConfig().getFirehoseFactory() instanceof LocalFirehoseFactory);
   }
 
   @Test
@@ -427,7 +427,8 @@ public class TaskSerdeTest
             null
         ),
         null,
-        null
+        null,
+        "blah"
     );
 
     final String json = jsonMapper.writeValueAsString(task);
@@ -442,5 +443,7 @@ public class TaskSerdeTest
         task.getSpec().getTuningConfig().getJobProperties(),
         task2.getSpec().getTuningConfig().getJobProperties()
     );
+    Assert.assertEquals("blah", task.getClasspathPrefix());
+    Assert.assertEquals("blah", task2.getClasspathPrefix());
   }
 }

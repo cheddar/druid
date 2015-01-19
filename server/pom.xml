@@ -28,7 +28,7 @@
     <parent>
         <groupId>io.druid</groupId>
         <artifactId>druid</artifactId>
-        <version>0.6.146</version>
+        <version>0.6.171-SNAPSHOT</version>
     </parent>
 
     <dependencies>
@@ -78,6 +78,10 @@
             <artifactId>jackson-jaxrs-json-provider</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.fasterxml.jackson.jaxrs</groupId>
+            <artifactId>jackson-jaxrs-smile-provider</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-smile</artifactId>
         </dependency>
@@ -122,7 +126,7 @@
             <artifactId>antlr4-runtime</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.google.code.simple-spring-memcached</groupId>
+            <groupId>net.spy</groupId>
             <artifactId>spymemcached</artifactId>
         </dependency>
         <dependency>

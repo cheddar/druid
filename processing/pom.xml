@@ -28,7 +28,7 @@
     <parent>
         <groupId>io.druid</groupId>
         <artifactId>druid</artifactId>
-        <version>0.6.146</version>
+        <version>0.6.171-SNAPSHOT</version>
     </parent>
 
     <dependencies>
@@ -92,6 +92,11 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.carrotsearch</groupId>
+            <artifactId>junit-benchmarks</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

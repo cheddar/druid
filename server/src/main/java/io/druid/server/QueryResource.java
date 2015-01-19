@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Charsets;
-import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
@@ -34,12 +33,11 @@ import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceEmitter;
-import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Smile;
-import io.druid.query.DataSourceUtil;
 import io.druid.query.Query;
 import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryMetricUtil;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.log.RequestLogger;
@@ -67,7 +65,6 @@ import java.util.UUID;
 public class QueryResource
 {
   private static final EmittingLogger log = new EmittingLogger(QueryResource.class);
-  private static final Joiner COMMA_JOIN = Joiner.on(",");
   public static final String APPLICATION_SMILE = "application/smile";
   public static final String APPLICATION_JSON = "application/json";
 
@@ -125,6 +122,7 @@ public class QueryResource
     String queryId = null;
 
     final boolean isSmile = APPLICATION_SMILE.equals(req.getContentType());
+    final String contentType = isSmile ? APPLICATION_SMILE : APPLICATION_JSON;
 
     ObjectMapper objectMapper = isSmile ? smileMapper : jsonMapper;
     final ObjectWriter jsonWriter = req.getParameter("pretty") == null
@@ -176,22 +174,8 @@ public class QueryResource
       try {
         long requestTime = System.currentTimeMillis() - start;
         emitter.emit(
-            new ServiceMetricEvent.Builder()
-                .setUser2(DataSourceUtil.getMetricName(query.getDataSource()))
-                .setUser3(
-                    jsonMapper.writeValueAsString(
-                        query.getContext() == null
-                        ? ImmutableMap.of()
-                        : query.getContext()
-                    )
-                )
-                .setUser4(query.getType())
-                .setUser5(COMMA_JOIN.join(query.getIntervals()))
-                .setUser6(String.valueOf(query.hasFilters()))
-                .setUser7(req.getRemoteAddr())
-                .setUser8(queryId)
-                .setUser9(query.getDuration().toPeriod().toStandardMinutes().toString())
-                .build("request/time", requestTime)
+            QueryMetricUtil.makeRequestTimeMetric(jsonMapper, query, req.getRemoteAddr())
+                           .build("request/time", requestTime)
         );
 
         requestLogger.log(
@@ -220,8 +204,8 @@ public class QueryResource
                     outputStream.close();
                   }
                 },
-                isSmile ? APPLICATION_JSON : APPLICATION_SMILE
-            )
+                contentType
+        )
             .header("X-Druid-Query-Id", queryId)
             .build();
       }
@@ -259,10 +243,10 @@ public class QueryResource
       catch (Exception e2) {
         log.error(e2, "Unable to log query [%s]!", query);
       }
-      return Response.serverError().entity(
-          jsonWriter.writeValueAsString(
+      return Response.serverError().type(contentType).entity(
+          jsonWriter.writeValueAsBytes(
               ImmutableMap.of(
-                  "error", e.getMessage()
+                  "error", e.getMessage() == null ? "null exception" : e.getMessage()
               )
           )
       ).build();
@@ -295,8 +279,8 @@ public class QueryResource
          .addData("peer", req.getRemoteAddr())
          .emit();
 
-      return Response.serverError().entity(
-          jsonWriter.writeValueAsString(
+      return Response.serverError().type(contentType).entity(
+          jsonWriter.writeValueAsBytes(
               ImmutableMap.of(
                   "error", e.getMessage() == null ? "null exception" : e.getMessage()
               )

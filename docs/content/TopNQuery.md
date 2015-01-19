@@ -4,7 +4,7 @@ layout: doc_page
 TopN queries
 ==================
 
-TopN queries return a sorted set of results for the values in a given dimension according to some criteria. Conceptually, they can be thought of as an approximate [GroupByQuery](GroupByQuery.html) over a single dimension with an [Ordering](Ordering.html) spec. TopNs are much faster and resource efficient than GroupBys for this use case. These types of queries take a topN query object and return an array of JSON objects where each object represents a value asked for by the topN query.
+TopN queries return a sorted set of results for the values in a given dimension according to some criteria. Conceptually, they can be thought of as an approximate [GroupByQuery](GroupByQuery.html) over a single dimension with an [Ordering](LimitSpec.html) spec. TopNs are much faster and resource efficient than GroupBys for this use case. These types of queries take a topN query object and return an array of JSON objects where each object represents a value asked for by the topN query.
 
 A topN query object looks like:
 
@@ -72,9 +72,9 @@ There are 10 parts to a topN query, but 7 of them are shared with [TimeseriesQue
 
 |property|description|required?|
 |--------|-----------|---------|
-|dimension|A JSON object defining the dimension that you want the top taken for. For more info, see [DimensionSpecs](DimensionSpecs.html)|yes|
+|dimension|A String or JSON object defining the dimension that you want the top taken for. For more info, see [DimensionSpecs](DimensionSpecs.html)|yes|
 |threshold|An integer defining the N in the topN (i.e. how many you want in the top list)|yes|
-|metric|A JSON object specifying the metric to sort by for the top list. For more info, see [TopNMetricSpec](TopNMetricSpec.html).|yes|
+|metric|A String or JSON object specifying the metric to sort by for the top list. For more info, see [TopNMetricSpec](TopNMetricSpec.html).|yes|
 
 Please note the context JSON object is also available for topN queries and should be used with the same caution as the timeseries case.
 The format of the results would look like so:

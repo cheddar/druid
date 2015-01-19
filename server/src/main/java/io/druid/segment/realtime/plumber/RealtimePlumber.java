@@ -310,7 +310,13 @@ public class RealtimePlumber implements Plumber
           {
             final Interval interval = sink.getInterval();
 
-            // use a file to indicate that pushing has completed
+            // Bail out if this sink has been abandoned by a previously-executed task.
+            if (sinks.get(truncatedTime) != sink) {
+              log.info("Sink[%s] was abandoned, bailing out of persist-n-merge.", sink);
+              return;
+            }
+
+            // Use a file to indicate that pushing has completed.
             final File persistDir = computePersistDir(schema, interval);
             final File mergedTarget = new File(persistDir, "merged");
             final File isPushedMarker = new File(persistDir, "isPushedMarker");
@@ -663,6 +669,9 @@ public class RealtimePlumber implements Plumber
    * Unannounces a given sink and removes all local references to it. It is important that this is only called
    * from the single-threaded mergeExecutor, since otherwise chaos may ensue if merged segments are deleted while
    * being created.
+   *
+   * @param truncatedTime sink key
+   * @param sink sink to unannounce
    */
   protected void abandonSegment(final long truncatedTime, final Sink sink)
   {
@@ -700,9 +709,9 @@ public class RealtimePlumber implements Plumber
   /**
    * Persists the given hydrant and returns the number of rows persisted
    *
-   * @param indexToPersist
-   * @param schema
-   * @param interval
+   * @param indexToPersist hydrant to persist
+   * @param schema datasource schema
+   * @param interval interval to persist
    *
    * @return the number of rows persisted
    */

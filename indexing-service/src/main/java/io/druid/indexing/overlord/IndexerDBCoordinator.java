@@ -39,13 +39,12 @@ import org.joda.time.Interval;
 import org.skife.jdbi.v2.FoldController;
 import org.skife.jdbi.v2.Folder3;
 import org.skife.jdbi.v2.Handle;
-import org.skife.jdbi.v2.IDBI;
 import org.skife.jdbi.v2.ResultIterator;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.TransactionCallback;
 import org.skife.jdbi.v2.TransactionStatus;
-import org.skife.jdbi.v2.exceptions.CallbackFailedException;
 import org.skife.jdbi.v2.tweak.HandleCallback;
+import org.skife.jdbi.v2.util.ByteArrayMapper;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -88,7 +87,7 @@ public class IndexerDBCoordinator
                 Ordering.natural()
             );
 
-            final ResultIterator<Map<String, Object>> dbSegments =
+            final ResultIterator<byte[]> dbSegments =
                 handle.createQuery(
                     String.format(
                         "SELECT payload FROM %s WHERE used = true AND dataSource = :dataSource",
@@ -96,14 +95,15 @@ public class IndexerDBCoordinator
                     )
                 )
                       .bind("dataSource", dataSource)
+                      .map(ByteArrayMapper.FIRST)
                       .iterator();
 
             while (dbSegments.hasNext()) {
 
-              final Map<String, Object> dbSegment = dbSegments.next();
+              final byte[] dbSegment = dbSegments.next();
 
               DataSegment segment = jsonMapper.readValue(
-                  (String) dbSegment.get("payload"),
+                  dbSegment,
                   DataSegment.class
               );
 
@@ -140,6 +140,8 @@ public class IndexerDBCoordinator
    *
    * @param segments set of segments to add
    * @return set of segments actually added
+   *
+   * @throws java.io.IOException if a database error occurs
    */
   public Set<DataSegment> announceHistoricalSegments(final Set<DataSegment> segments) throws IOException
   {
@@ -197,7 +199,7 @@ public class IndexerDBCoordinator
               .bind("partitioned", (segment.getShardSpec() instanceof NoneShardSpec) ? 0 : 1)
               .bind("version", segment.getVersion())
               .bind("used", true)
-              .bind("payload", jsonMapper.writeValueAsString(segment))
+              .bind("payload", jsonMapper.writeValueAsBytes(segment))
               .execute();
 
         log.info("Published segment [%s] to DB", segment.getIdentifier());
@@ -283,7 +285,7 @@ public class IndexerDBCoordinator
           String.format("UPDATE %s SET payload = :payload WHERE id = :id", dbTables.getSegmentsTable())
       )
             .bind("id", segment.getIdentifier())
-            .bind("payload", jsonMapper.writeValueAsString(segment))
+            .bind("payload", jsonMapper.writeValueAsBytes(segment))
             .execute();
     }
     catch (IOException e) {
@@ -311,21 +313,22 @@ public class IndexerDBCoordinator
                          .bind("dataSource", dataSource)
                          .bind("start", interval.getStart().toString())
                          .bind("end", interval.getEnd().toString())
+                         .map(ByteArrayMapper.FIRST)
                          .fold(
                              Lists.<DataSegment>newArrayList(),
-                             new Folder3<List<DataSegment>, Map<String, Object>>()
+                             new Folder3<List<DataSegment>, byte[]>()
                              {
                                @Override
                                public List<DataSegment> fold(
                                    List<DataSegment> accumulator,
-                                   Map<String, Object> stringObjectMap,
+                                   byte[] payload,
                                    FoldController foldController,
                                    StatementContext statementContext
                                ) throws SQLException
                                {
                                  try {
                                    DataSegment segment = jsonMapper.readValue(
-                                       (String) stringObjectMap.get("payload"),
+                                       payload,
                                        DataSegment.class
                                    );
 

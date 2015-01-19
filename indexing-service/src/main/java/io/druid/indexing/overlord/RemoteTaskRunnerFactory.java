@@ -26,20 +26,22 @@ import com.metamx.http.client.HttpClient;
 import io.druid.curator.cache.SimplePathChildrenCacheFactory;
 import io.druid.guice.annotations.Global;
 import io.druid.indexing.overlord.config.RemoteTaskRunnerConfig;
-import io.druid.indexing.overlord.setup.WorkerSetupData;
+import io.druid.indexing.overlord.setup.FillCapacityWorkerSelectStrategy;
+import io.druid.indexing.overlord.setup.WorkerBehaviorConfig;
+import io.druid.indexing.overlord.setup.WorkerSelectStrategy;
 import io.druid.server.initialization.ZkPathsConfig;
 import org.apache.curator.framework.CuratorFramework;
 
 /**
-*/
+ */
 public class RemoteTaskRunnerFactory implements TaskRunnerFactory
 {
   private final CuratorFramework curator;
   private final RemoteTaskRunnerConfig remoteTaskRunnerConfig;
   private final ZkPathsConfig zkPaths;
   private final ObjectMapper jsonMapper;
-  private final Supplier<WorkerSetupData> setupDataWatch;
   private final HttpClient httpClient;
+  private final WorkerSelectStrategy strategy;
 
   @Inject
   public RemoteTaskRunnerFactory(
@@ -47,15 +49,26 @@ public class RemoteTaskRunnerFactory implements TaskRunnerFactory
       final RemoteTaskRunnerConfig remoteTaskRunnerConfig,
       final ZkPathsConfig zkPaths,
       final ObjectMapper jsonMapper,
-      final Supplier<WorkerSetupData> setupDataWatch,
-      @Global final HttpClient httpClient
-  ) {
+      @Global final HttpClient httpClient,
+      final Supplier<WorkerBehaviorConfig> workerBehaviourConfigSupplier
+  )
+  {
     this.curator = curator;
     this.remoteTaskRunnerConfig = remoteTaskRunnerConfig;
     this.zkPaths = zkPaths;
     this.jsonMapper = jsonMapper;
-    this.setupDataWatch = setupDataWatch;
     this.httpClient = httpClient;
+    if (workerBehaviourConfigSupplier != null) {
+      // Backwards compatibility
+      final WorkerBehaviorConfig workerBehaviorConfig = workerBehaviourConfigSupplier.get();
+      if (workerBehaviorConfig != null) {
+        this.strategy = workerBehaviorConfig.getSelectStrategy();
+      } else {
+        this.strategy = new FillCapacityWorkerSelectStrategy();
+      }
+    } else {
+      this.strategy = new FillCapacityWorkerSelectStrategy();
+    }
   }
 
   @Override
@@ -70,8 +83,8 @@ public class RemoteTaskRunnerFactory implements TaskRunnerFactory
             .Builder()
             .withCompressed(remoteTaskRunnerConfig.isCompressZnodes())
             .build(),
-        setupDataWatch,
-        httpClient
+        httpClient,
+        strategy
     );
   }
 }
