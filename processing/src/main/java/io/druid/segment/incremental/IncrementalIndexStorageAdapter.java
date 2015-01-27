@@ -499,24 +499,26 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
         }
         return new BooleanValueMatcher(false);
       }
+
+      if (value == null || "".equals(value)) {
+        final int dimIndex = dimIndexObject;
+
+        return new ValueMatcher()
+        {
+          @Override
+          public boolean matches()
+          {
+            String[][] dims = holder.getKey().getDims();
+            if (dimIndex >= dims.length || dims[dimIndex] == null) {
+              return true;
+            }
+            return false;
+          }
+        };
+      }
+
       String idObject = index.getDimension(dimension.toLowerCase()).get(value);
       if (idObject == null) {
-        if (value == null || "".equals(value)) {
-          final int dimIndex = dimIndexObject;
-
-          return new ValueMatcher()
-          {
-            @Override
-            public boolean matches()
-            {
-              String[][] dims = holder.getKey().getDims();
-              if (dimIndex >= dims.length || dims[dimIndex] == null) {
-                return true;
-              }
-              return false;
-            }
-          };
-        }
         return new BooleanValueMatcher(false);
       }
 
