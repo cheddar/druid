@@ -493,14 +493,11 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
     public ValueMatcher makeValueMatcher(String dimension, String value)
     {
       Integer dimIndexObject = index.getDimensionIndex(dimension.toLowerCase());
-      if (dimIndexObject == null) {
-        if (value == null || "".equals(value)) {
+      if (value == null || "".equals(value)) {
+        if (dimIndexObject == null) {
           return new BooleanValueMatcher(true);
         }
-        return new BooleanValueMatcher(false);
-      }
 
-      if (value == null || "".equals(value)) {
         final int dimIndex = dimIndexObject;
 
         return new ValueMatcher()
@@ -512,11 +509,19 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
             if (dimIndex >= dims.length || dims[dimIndex] == null) {
               return true;
             }
+            for (String val : dims[dimIndex]) {
+              if (val == null || "".equals(val)) {
+                return true;
+              }
+            }
             return false;
           }
         };
       }
 
+      if (dimIndexObject == null) {
+        return new BooleanValueMatcher(false);
+      }
       String idObject = index.getDimension(dimension.toLowerCase()).get(value);
       if (idObject == null) {
         return new BooleanValueMatcher(false);
