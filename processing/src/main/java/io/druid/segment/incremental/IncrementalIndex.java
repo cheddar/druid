@@ -397,10 +397,15 @@ public class IncrementalIndex implements Iterable<Row>
 
     int count = 0;
     for (String dimValue : dimValues) {
-      String canonicalDimValue = dimLookup.get(dimValue);
-      if (canonicalDimValue == null) {
-        canonicalDimValue = dimValue;
-        dimLookup.add(dimValue);
+      String canonicalDimValue;
+      if (dimValue == null || "".equals(dimValue)) {
+        canonicalDimValue = null;
+      } else {
+        canonicalDimValue = dimLookup.get(dimValue);
+        if (canonicalDimValue == null) {
+          canonicalDimValue = dimValue;
+          dimLookup.add(dimValue);
+        }
       }
 
       retVal[count] = canonicalDimValue;
