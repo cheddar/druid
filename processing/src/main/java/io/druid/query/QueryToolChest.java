@@ -66,7 +66,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    * This method assumes that its input sequences provide values already in sorted order, but, unlike
    * mergeSequences, it does *not* assume that the individual sequences are also ordered by their first element.
    *
-   * In the vast majority if ocases, this hsould just be implemented with:
+   * In the vast majority if ocases, this should just be implemented with:
    *
    *     return new MergeSequence<>(getOrdering(), seqOfSequences);
    *
