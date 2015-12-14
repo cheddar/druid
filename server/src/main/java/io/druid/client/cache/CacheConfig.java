@@ -70,6 +70,6 @@ public class CacheConfig
   public boolean isQueryCacheable(Query query)
   {
     // O(n) impl, but I don't think we'll ever have a million query types here
-    return !unCacheable.contains(query.getType());
+    return !query.isDescending() && !unCacheable.contains(query.getType());
   }
 }

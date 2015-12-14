@@ -76,7 +76,9 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
   }
 
   @Override
-  public QueryRunner<Result<TimeseriesResultValue>> mergeResults(QueryRunner<Result<TimeseriesResultValue>> queryRunner)
+  public QueryRunner<Result<TimeseriesResultValue>> mergeResults(
+      QueryRunner<Result<TimeseriesResultValue>> queryRunner
+  )
   {
     return new ResultMergeQueryRunner<Result<TimeseriesResultValue>>(queryRunner)
     {
@@ -85,7 +87,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
       {
         return Ordering.from(
             new ResultGranularTimestampComparator<TimeseriesResultValue>(
-                ((TimeseriesQuery) query).getGranularity()
+                ((TimeseriesQuery) query).getGranularity(), query.isDescending()
             )
         );
       }
@@ -105,15 +107,21 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
   }
 
   @Override
-  public Sequence<Result<TimeseriesResultValue>> mergeSequences(Sequence<Sequence<Result<TimeseriesResultValue>>> seqOfSequences)
+  public Sequence<Result<TimeseriesResultValue>> mergeSequences(
+      Sequence<Sequence<Result<TimeseriesResultValue>>> seqOfSequences,
+      boolean descending
+  )
   {
-    return new OrderedMergeSequence<>(getOrdering(), seqOfSequences);
+    return new OrderedMergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
-  public Sequence<Result<TimeseriesResultValue>> mergeSequencesUnordered(Sequence<Sequence<Result<TimeseriesResultValue>>> seqOfSequences)
+  public Sequence<Result<TimeseriesResultValue>> mergeSequencesUnordered(
+      Sequence<Sequence<Result<TimeseriesResultValue>>> seqOfSequences,
+      boolean descending
+  )
   {
-    return new MergeSequence<>(getOrdering(), seqOfSequences);
+    return new MergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
@@ -221,7 +229,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
       @Override
       public Sequence<Result<TimeseriesResultValue>> mergeSequences(Sequence<Sequence<Result<TimeseriesResultValue>>> seqOfSequences)
       {
-        return new MergeSequence<Result<TimeseriesResultValue>>(getOrdering(), seqOfSequences);
+        return new MergeSequence<Result<TimeseriesResultValue>>(getOrdering(query.isDescending()), seqOfSequences);
       }
     };
   }
@@ -232,9 +240,10 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
     return intervalChunkingQueryRunnerDecorator.decorate(runner, this);
   }
 
-  public Ordering<Result<TimeseriesResultValue>> getOrdering()
+  @Override
+  public Ordering<Result<TimeseriesResultValue>> getOrdering(boolean descending)
   {
-    return Ordering.natural();
+    return super.getOrdering(descending);
   }
 
   @Override

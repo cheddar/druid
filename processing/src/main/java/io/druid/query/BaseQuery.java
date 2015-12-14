@@ -38,6 +38,7 @@ public abstract class BaseQuery<T> implements Query<T>
 {
   public static final String QUERYID = "queryId";
   private final DataSource dataSource;
+  private final boolean descending;
   private final Map<String, Object> context;
   private final QuerySegmentSpec querySegmentSpec;
   private volatile Duration duration;
@@ -45,6 +46,7 @@ public abstract class BaseQuery<T> implements Query<T>
   public BaseQuery(
       DataSource dataSource,
       QuerySegmentSpec querySegmentSpec,
+      boolean descending,
       Map<String, Object> context
   )
   {
@@ -54,6 +56,7 @@ public abstract class BaseQuery<T> implements Query<T>
     this.dataSource = dataSource;
     this.context = context;
     this.querySegmentSpec = querySegmentSpec;
+    this.descending = descending;
   }
 
   @JsonProperty
@@ -61,6 +64,13 @@ public abstract class BaseQuery<T> implements Query<T>
   public DataSource getDataSource()
   {
     return dataSource;
+  }
+
+  @JsonProperty
+  @Override
+  public boolean isDescending()
+  {
+    return descending;
   }
 
   @JsonProperty("intervals")
@@ -219,6 +229,9 @@ public abstract class BaseQuery<T> implements Query<T>
 
     BaseQuery baseQuery = (BaseQuery) o;
 
+    if (descending != baseQuery.descending) {
+      return false;
+    }
     if (context != null ? !context.equals(baseQuery.context) : baseQuery.context != null) {
       return false;
     }
@@ -244,6 +257,9 @@ public abstract class BaseQuery<T> implements Query<T>
     result = 31 * result + (context != null ? context.hashCode() : 0);
     result = 31 * result + (querySegmentSpec != null ? querySegmentSpec.hashCode() : 0);
     result = 31 * result + (duration != null ? duration.hashCode() : 0);
+    if (isDescending()) {
+      result = 31 * result + 1;
+    }
     return result;
   }
 }

@@ -251,31 +251,34 @@ public class IncrementalIndexStorageAdapterTest
     );
 
     IncrementalIndexStorageAdapter adapter = new IncrementalIndexStorageAdapter(index);
-    Sequence<Cursor> cursorSequence = adapter.makeCursors(
-        new SelectorFilter("sally", "bo"),
-        interval,
-        QueryGranularity.NONE
-    );
+    for (boolean descending : Arrays.asList(false, true)) {
+      Sequence<Cursor> cursorSequence = adapter.makeCursors(
+          new SelectorFilter("sally", "bo"),
+          interval,
+          QueryGranularity.NONE,
+          descending
+      );
 
-    Cursor cursor = Sequences.toList(Sequences.limit(cursorSequence, 1), Lists.<Cursor>newArrayList()).get(0);
-    DimensionSelector dimSelector;
+      Cursor cursor = Sequences.toList(Sequences.limit(cursorSequence, 1), Lists.<Cursor>newArrayList()).get(0);
+      DimensionSelector dimSelector;
 
-    dimSelector = cursor.makeDimensionSelector("sally", null);
-    Assert.assertEquals("bo", dimSelector.lookupName(dimSelector.getRow().get(0)));
+      dimSelector = cursor.makeDimensionSelector("sally", null);
+      Assert.assertEquals("bo", dimSelector.lookupName(dimSelector.getRow().get(0)));
 
-    index.add(
-        new MapBasedInputRow(
-            t.minus(1).getMillis(),
-            Lists.newArrayList("sally"),
-            ImmutableMap.<String, Object>of("sally", "ah")
-        )
-    );
+      index.add(
+          new MapBasedInputRow(
+              t.minus(1).getMillis(),
+              Lists.newArrayList("sally"),
+              ImmutableMap.<String, Object>of("sally", "ah")
+          )
+      );
 
-    // Cursor reset should not be affected by out of order values
-    cursor.reset();
+      // Cursor reset should not be affected by out of order values
+      cursor.reset();
 
-    dimSelector = cursor.makeDimensionSelector("sally", null);
-    Assert.assertEquals("bo", dimSelector.lookupName(dimSelector.getRow().get(0)));
+      dimSelector = cursor.makeDimensionSelector("sally", null);
+      Assert.assertEquals("bo", dimSelector.lookupName(dimSelector.getRow().get(0)));
+    }
   }
 
   @Test

@@ -105,15 +105,21 @@ public class DataSourceQueryQueryToolChest
   }
 
   @Override
-  public Sequence<Result<DataSourceMetadataResultValue>> mergeSequences(Sequence<Sequence<Result<DataSourceMetadataResultValue>>> seqOfSequences)
+  public Sequence<Result<DataSourceMetadataResultValue>> mergeSequences(
+      Sequence<Sequence<Result<DataSourceMetadataResultValue>>> seqOfSequences,
+      boolean descending
+  )
   {
-    return new OrderedMergeSequence<>(getOrdering(), seqOfSequences);
+    return new OrderedMergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
-  public Sequence<Result<DataSourceMetadataResultValue>> mergeSequencesUnordered(Sequence<Sequence<Result<DataSourceMetadataResultValue>>> seqOfSequences)
+  public Sequence<Result<DataSourceMetadataResultValue>> mergeSequencesUnordered(
+      Sequence<Sequence<Result<DataSourceMetadataResultValue>>> seqOfSequences,
+      boolean descending
+  )
   {
-    return new MergeSequence<>(getOrdering(), seqOfSequences);
+    return new MergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
@@ -144,8 +150,9 @@ public class DataSourceQueryQueryToolChest
     return null;
   }
 
-  public Ordering<Result<DataSourceMetadataResultValue>> getOrdering()
+  @Override
+  public Ordering<Result<DataSourceMetadataResultValue>> getOrdering(boolean descending)
   {
-    return Ordering.natural();
+    return super.getOrdering(descending);
   }
 }

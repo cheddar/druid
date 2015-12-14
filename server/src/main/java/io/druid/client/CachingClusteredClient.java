@@ -292,7 +292,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
             addSequencesFromCache(sequencesByInterval);
             addSequencesFromServer(sequencesByInterval);
 
-            return mergeCachedAndUncachedSequences(sequencesByInterval, toolChest);
+            return mergeCachedAndUncachedSequences(sequencesByInterval, toolChest, query.isDescending());
           }
 
           private void addSequencesFromCache(ArrayList<Sequence<T>> listOfSequences)
@@ -492,7 +492,8 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
                             );// End withEffect
                           }
                         }
-                    )
+                    ),
+                    query.isDescending()
                 );
               }
 
@@ -505,7 +506,8 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
 
   protected Sequence<T> mergeCachedAndUncachedSequences(
       List<Sequence<T>> sequencesByInterval,
-      QueryToolChest<T, Query<T>> toolChest
+      QueryToolChest<T, Query<T>> toolChest,
+      boolean descending
   )
   {
     if (sequencesByInterval.isEmpty()) {
@@ -515,7 +517,8 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     return toolChest.mergeSequencesUnordered(
         Sequences.simple(
             sequencesByInterval
-        )
+        ),
+        descending
     );
   }
 

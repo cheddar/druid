@@ -61,7 +61,8 @@ public class UnionQueryRunner<T> implements QueryRunner<T>
                     }
                   }
               )
-          )
+          ),
+          query.isDescending()
       );
     } else {
       return baseRunner.run(query, responseContext);

@@ -72,6 +72,7 @@ public class SelectQueryEngine
         adapter,
         query.getQuerySegmentSpec().getIntervals(),
         Filters.convertDimensionFilters(query.getDimensionsFilter()),
+        query.isDescending(),
         query.getGranularity(),
         new Function<Cursor, Result<SelectResultValue>>()
         {
@@ -81,7 +82,8 @@ public class SelectQueryEngine
             final SelectResultValueBuilder builder = new SelectResultValueBuilder(
                 cursor.getTime(),
                 query.getPagingSpec()
-                     .getThreshold()
+                     .getThreshold(),
+                query.isDescending()
             );
 
             final LongColumnSelector timestampColumnSelector = cursor.makeLongColumnSelector(Column.TIME_COLUMN_NAME);

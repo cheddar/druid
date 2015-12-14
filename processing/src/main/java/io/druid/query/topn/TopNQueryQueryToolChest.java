@@ -110,7 +110,9 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
   }
 
   @Override
-  public QueryRunner<Result<TopNResultValue>> mergeResults(QueryRunner<Result<TopNResultValue>> runner)
+  public QueryRunner<Result<TopNResultValue>> mergeResults(
+      QueryRunner<Result<TopNResultValue>> runner
+  )
   {
     return new ResultMergeQueryRunner<Result<TopNResultValue>>(runner)
     {
@@ -119,7 +121,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
       {
         return Ordering.from(
             new ResultGranularTimestampComparator<TopNResultValue>(
-                ((TopNQuery) query).getGranularity()
+                ((TopNQuery) query).getGranularity(), query.isDescending()
             )
         );
       }
@@ -144,15 +146,21 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
   }
 
   @Override
-  public Sequence<Result<TopNResultValue>> mergeSequences(Sequence<Sequence<Result<TopNResultValue>>> seqOfSequences)
+  public Sequence<Result<TopNResultValue>> mergeSequences(
+      Sequence<Sequence<Result<TopNResultValue>>> seqOfSequences,
+      boolean descending
+  )
   {
-    return new OrderedMergeSequence<>(getOrdering(), seqOfSequences);
+    return new OrderedMergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
-  public Sequence<Result<TopNResultValue>> mergeSequencesUnordered(Sequence<Sequence<Result<TopNResultValue>>> seqOfSequences)
+  public Sequence<Result<TopNResultValue>> mergeSequencesUnordered(
+      Sequence<Sequence<Result<TopNResultValue>>> seqOfSequences,
+      boolean descending
+  )
   {
-    return new MergeSequence<>(getOrdering(), seqOfSequences);
+    return new MergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
@@ -421,7 +429,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
       @Override
       public Sequence<Result<TopNResultValue>> mergeSequences(Sequence<Sequence<Result<TopNResultValue>>> seqOfSequences)
       {
-        return new MergeSequence<>(getOrdering(), seqOfSequences);
+        return new MergeSequence<>(getOrdering(query.isDescending()), seqOfSequences);
       }
     };
   }
@@ -523,9 +531,10 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
     };
   }
 
-  public Ordering<Result<TopNResultValue>> getOrdering()
+  @Override
+  public Ordering<Result<TopNResultValue>> getOrdering(boolean descending)
   {
-    return Ordering.natural();
+    return super.getOrdering(descending);
   }
 
   private static class ThresholdAdjustingQueryRunner implements QueryRunner<Result<TopNResultValue>>

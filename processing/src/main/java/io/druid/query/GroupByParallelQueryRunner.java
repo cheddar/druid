@@ -175,7 +175,7 @@ public class GroupByParallelQueryRunner<T> implements QueryRunner<T>
     return new ResourceClosingSequence<T>(
         Sequences.simple(
             Iterables.transform(
-                indexAccumulatorPair.lhs.iterableWithPostAggregations(null),
+                indexAccumulatorPair.lhs.iterableWithPostAggregations(null, query.isDescending()),
                 new Function<Row, T>()
                 {
                   @Override

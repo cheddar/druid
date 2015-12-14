@@ -110,15 +110,21 @@ public class TimeBoundaryQueryQueryToolChest
   }
 
   @Override
-  public Sequence<Result<TimeBoundaryResultValue>> mergeSequences(Sequence<Sequence<Result<TimeBoundaryResultValue>>> seqOfSequences)
+  public Sequence<Result<TimeBoundaryResultValue>> mergeSequences(
+      Sequence<Sequence<Result<TimeBoundaryResultValue>>> seqOfSequences,
+      boolean descending
+  )
   {
-    return new OrderedMergeSequence<>(getOrdering(), seqOfSequences);
+    return new OrderedMergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
-  public Sequence<Result<TimeBoundaryResultValue>> mergeSequencesUnordered(Sequence<Sequence<Result<TimeBoundaryResultValue>>> seqOfSequences)
+  public Sequence<Result<TimeBoundaryResultValue>> mergeSequencesUnordered(
+      Sequence<Sequence<Result<TimeBoundaryResultValue>>> seqOfSequences,
+      boolean descending
+  )
   {
-    return new MergeSequence<>(getOrdering(), seqOfSequences);
+    return new MergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
@@ -144,7 +150,7 @@ public class TimeBoundaryQueryQueryToolChest
   }
 
   @Override
-  public CacheStrategy<Result<TimeBoundaryResultValue>, Object, TimeBoundaryQuery> getCacheStrategy(TimeBoundaryQuery query)
+  public CacheStrategy<Result<TimeBoundaryResultValue>, Object, TimeBoundaryQuery> getCacheStrategy(final TimeBoundaryQuery query)
   {
     return new CacheStrategy<Result<TimeBoundaryResultValue>, Object, TimeBoundaryQuery>()
     {
@@ -199,13 +205,14 @@ public class TimeBoundaryQueryQueryToolChest
       @Override
       public Sequence<Result<TimeBoundaryResultValue>> mergeSequences(Sequence<Sequence<Result<TimeBoundaryResultValue>>> seqOfSequences)
       {
-        return new MergeSequence<>(getOrdering(), seqOfSequences);
+        return new MergeSequence<>(getOrdering(query.isDescending()), seqOfSequences);
       }
     };
   }
 
-  public Ordering<Result<TimeBoundaryResultValue>> getOrdering()
+  @Override
+  public Ordering<Result<TimeBoundaryResultValue>> getOrdering(boolean descending)
   {
-    return Ordering.natural();
+    return super.getOrdering(descending);
   }
 }

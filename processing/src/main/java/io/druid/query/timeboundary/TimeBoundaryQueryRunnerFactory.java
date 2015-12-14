@@ -19,11 +19,13 @@
 
 package io.druid.query.timeboundary;
 
+import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.Sequence;
 import io.druid.query.ChainedExecutionQueryRunner;
+import io.druid.query.OrderingFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -41,7 +43,7 @@ import java.util.concurrent.ExecutorService;
 /**
  */
 public class TimeBoundaryQueryRunnerFactory
-    implements QueryRunnerFactory<Result<TimeBoundaryResultValue>, TimeBoundaryQuery>
+    implements QueryRunnerFactory<Result<TimeBoundaryResultValue>, TimeBoundaryQuery>, OrderingFactory<TimeBoundaryQuery>
 {
   private static final TimeBoundaryQueryQueryToolChest toolChest = new TimeBoundaryQueryQueryToolChest();
   private final QueryWatcher queryWatcher;
@@ -64,7 +66,7 @@ public class TimeBoundaryQueryRunnerFactory
   )
   {
     return new ChainedExecutionQueryRunner<>(
-        queryExecutor, toolChest.getOrdering(), queryWatcher, queryRunners
+        queryExecutor, this, queryWatcher, queryRunners
     );
   }
 
@@ -72,6 +74,12 @@ public class TimeBoundaryQueryRunnerFactory
   public QueryToolChest<Result<TimeBoundaryResultValue>, TimeBoundaryQuery> getToolchest()
   {
     return toolChest;
+  }
+
+  @Override
+  public Ordering create(TimeBoundaryQuery query)
+  {
+    return toolChest.getOrdering(query.isDescending());
   }
 
   private static class TimeBoundaryQueryRunner implements QueryRunner<Result<TimeBoundaryResultValue>>
@@ -85,8 +93,8 @@ public class TimeBoundaryQueryRunnerFactory
 
     @Override
     public Sequence<Result<TimeBoundaryResultValue>> run(
-        Query<Result<TimeBoundaryResultValue>> input,
-        Map<String, Object> responseContext
+        final Query<Result<TimeBoundaryResultValue>> input,
+        final Map<String, Object> responseContext
     )
     {
       if (!(input instanceof TimeBoundaryQuery)) {

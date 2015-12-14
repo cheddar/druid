@@ -68,10 +68,11 @@ public class TimeseriesQueryRunnerTest
 
   public static final Map<String, Object> CONTEXT = ImmutableMap.of();
 
-  @Parameterized.Parameters
+  @Parameterized.Parameters(name="{0}:descending={1}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
-    return QueryRunnerTestHelper.transformToConstructionFeeder(
+    return QueryRunnerTestHelper.cartesian(
+        // runners
         QueryRunnerTestHelper.makeQueryRunners(
             new TimeseriesQueryRunnerFactory(
                 new TimeseriesQueryQueryToolChest(
@@ -80,17 +81,29 @@ public class TimeseriesQueryRunnerTest
                 new TimeseriesQueryEngine(),
                 QueryRunnerTestHelper.NOOP_QUERYWATCHER
             )
-        )
+        ),
+        // descending?
+        Arrays.asList(false, true)
     );
   }
 
+  private <T> void assertExpectedResults(Iterable<Result<T>> expectedResults, Iterable<Result<T>> results)
+  {
+    if (descending) {
+      expectedResults = TestHelper.revert(expectedResults);
+    }
+    TestHelper.assertExpectedResults(expectedResults, results);
+  }
+
   private final QueryRunner runner;
+  private final boolean descending;
 
   public TimeseriesQueryRunnerTest(
-      QueryRunner runner
+      QueryRunner runner, boolean descending
   )
   {
     this.runner = runner;
+    this.descending = descending;
   }
 
   @Test
@@ -109,52 +122,57 @@ public class TimeseriesQueryRunnerTest
                                       )
                                   )
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
-
-    DateTime expectedEarliest = new DateTime("2011-01-12");
-    DateTime expectedLast = new DateTime("2011-04-15");
 
     Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
         runner.run(query, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
 
+    final String[] expectedIndex = descending ?
+                                   QueryRunnerTestHelper.expectedFullOnIndexValuesDesc :
+                                   QueryRunnerTestHelper.expectedFullOnIndexValues;
+
+    final DateTime expectedLast = descending ?
+                                  QueryRunnerTestHelper.earliest :
+                                  QueryRunnerTestHelper.last;
+
     int count = 0;
     Result lastResult = null;
     for (Result<TimeseriesResultValue> result : results) {
-      lastResult = result;
-      Assert.assertEquals(expectedEarliest, result.getTimestamp());
+      DateTime current = result.getTimestamp();
       Assert.assertFalse(
-          String.format("Timestamp[%s] > expectedLast[%s]", result.getTimestamp(), expectedLast),
-          result.getTimestamp().isAfter(expectedLast)
+          String.format("Timestamp[%s] > expectedLast[%s]", current, expectedLast),
+          descending ? current.isBefore(expectedLast) : current.isAfter(expectedLast)
       );
 
       final TimeseriesResultValue value = result.getValue();
 
       Assert.assertEquals(
           result.toString(),
-          QueryRunnerTestHelper.skippedDay.equals(result.getTimestamp()) ? 0L : 13L,
+          QueryRunnerTestHelper.skippedDay.equals(current) ? 0L : 13L,
           value.getLongMetric("rows").longValue()
       );
       Assert.assertEquals(
           result.toString(),
-          QueryRunnerTestHelper.expectedFullOnIndexValues[count],
+          expectedIndex[count],
           String.valueOf(value.getDoubleMetric("index"))
       );
       Assert.assertEquals(
           result.toString(),
-          new Double(QueryRunnerTestHelper.expectedFullOnIndexValues[count]) +
-          (QueryRunnerTestHelper.skippedDay.equals(result.getTimestamp()) ? 0L : 13L) + 1L,
+          new Double(expectedIndex[count]) +
+          (QueryRunnerTestHelper.skippedDay.equals(current) ? 0L : 13L) + 1L,
           value.getDoubleMetric("addRowsIndexConstant"),
           0.0
       );
       Assert.assertEquals(
           value.getDoubleMetric("uniques"),
-          QueryRunnerTestHelper.skippedDay.equals(result.getTimestamp()) ? 0.0d : 9.0d,
+          QueryRunnerTestHelper.skippedDay.equals(current) ? 0.0d : 9.0d,
           0.02
       );
 
-      expectedEarliest = gran.toDateTime(gran.next(expectedEarliest.getMillis()));
+      lastResult = result;
       ++count;
     }
 
@@ -174,6 +192,7 @@ public class TimeseriesQueryRunnerTest
                                           new DoubleMinAggregatorFactory("minIndex", "index")
                                       )
                                   )
+                                  .descending(descending)
                                   .build();
 
     DateTime expectedEarliest = new DateTime("2011-01-12");
@@ -201,7 +220,6 @@ public class TimeseriesQueryRunnerTest
   public void testFullOnTimeseriesWithFilter()
   {
 
-    QueryGranularity gran = QueryGranularity.DAY;
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(QueryRunnerTestHelper.dataSource)
                                   .granularity(QueryRunnerTestHelper.dayGran)
@@ -213,6 +231,7 @@ public class TimeseriesQueryRunnerTest
                                           QueryRunnerTestHelper.qualityUniques
                                       )
                                   )
+                                  .descending(descending)
                                   .build();
 
     Assert.assertEquals(
@@ -223,8 +242,9 @@ public class TimeseriesQueryRunnerTest
         query.getDimensionsFilter()
     );
 
-    DateTime expectedEarliest = new DateTime("2011-01-12");
-    DateTime expectedLast = new DateTime("2011-04-15");
+    final DateTime expectedLast = descending ?
+                                  QueryRunnerTestHelper.earliest :
+                                  QueryRunnerTestHelper.last;
 
     Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
         runner.run(query, CONTEXT),
@@ -232,10 +252,10 @@ public class TimeseriesQueryRunnerTest
     );
 
     for (Result<TimeseriesResultValue> result : results) {
-      Assert.assertEquals(result.toString(), expectedEarliest, result.getTimestamp());
+      DateTime current = result.getTimestamp();
       Assert.assertFalse(
-          String.format("Timestamp[%s] > expectedLast[%s]", result.getTimestamp(), expectedLast),
-          result.getTimestamp().isAfter(expectedLast)
+          String.format("Timestamp[%s] > expectedLast[%s]", current, expectedLast),
+          descending ? current.isBefore(expectedLast) : current.isAfter(expectedLast)
       );
 
       final TimeseriesResultValue value = result.getValue();
@@ -253,8 +273,6 @@ public class TimeseriesQueryRunnerTest
           ),
           0.01
       );
-
-      expectedEarliest = gran.toDateTime(gran.next(expectedEarliest.getMillis()));
     }
   }
 
@@ -275,6 +293,7 @@ public class TimeseriesQueryRunnerTest
                                           QueryRunnerTestHelper.qualityUniques
                                       )
                                   )
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -297,7 +316,7 @@ public class TimeseriesQueryRunnerTest
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
 
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -322,6 +341,7 @@ public class TimeseriesQueryRunnerTest
                                           DateTimeZone.forID("America/Los_Angeles")
                                       )
                                   )
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -344,7 +364,7 @@ public class TimeseriesQueryRunnerTest
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
 
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -370,6 +390,7 @@ public class TimeseriesQueryRunnerTest
                                            QueryRunnerTestHelper.qualityUniques
                                        )
                                    )
+                                   .descending(descending)
                                    .build();
 
     List<Result<TimeseriesResultValue>> expectedResults1 = Arrays.asList(
@@ -385,7 +406,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query1, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults1, results1);
+    assertExpectedResults(expectedResults1, results1);
 
     TimeseriesQuery query2 = Druids.newTimeseriesQueryBuilder()
                                    .dataSource(QueryRunnerTestHelper.dataSource)
@@ -422,7 +443,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query2, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults2, results2);
+    assertExpectedResults(expectedResults2, results2);
   }
 
   @Test
@@ -454,6 +475,7 @@ public class TimeseriesQueryRunnerTest
                                            )
                                        )
                                    )
+                                   .descending(descending)
                                    .build();
 
     List<Result<TimeseriesResultValue>> expectedResults1 = Arrays.asList(
@@ -475,7 +497,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query1, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults1, results1);
+    assertExpectedResults(expectedResults1, results1);
   }
 
   @Test
@@ -501,6 +523,7 @@ public class TimeseriesQueryRunnerTest
                                            )
                                        )
                                    )
+                                   .descending(descending)
                                    .build();
 
     List<Result<TimeseriesResultValue>> lotsOfZeroes = Lists.newArrayList();
@@ -543,7 +566,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query1, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults1, results1);
+    assertExpectedResults(expectedResults1, results1);
   }
 
   @Test
@@ -575,6 +598,7 @@ public class TimeseriesQueryRunnerTest
                                            )
                                        )
                                    )
+                                   .descending(descending)
                                    .build();
 
     List<Result<TimeseriesResultValue>> expectedResults1 = Arrays.asList(
@@ -590,7 +614,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query1, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults1, results1);
+    assertExpectedResults(expectedResults1, results1);
   }
 
   @Test
@@ -617,6 +641,7 @@ public class TimeseriesQueryRunnerTest
                                            QueryRunnerTestHelper.qualityUniques
                                        )
                                    )
+                                   .descending(descending)
                                    .build();
 
     List<Result<TimeseriesResultValue>> expectedResults1 = Arrays.asList(
@@ -631,7 +656,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query1, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults1, results1);
+    assertExpectedResults(expectedResults1, results1);
 
     TimeseriesQuery query2 = Druids.newTimeseriesQueryBuilder()
                                    .dataSource(QueryRunnerTestHelper.dataSource)
@@ -669,7 +694,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query2, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults2, results2);
+    assertExpectedResults(expectedResults2, results2);
   }
 
   @Test
@@ -696,6 +721,7 @@ public class TimeseriesQueryRunnerTest
                                           )
                                       )
                                   )
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList();
@@ -704,7 +730,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -723,6 +749,7 @@ public class TimeseriesQueryRunnerTest
                                       )
                                   )
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -754,7 +781,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -773,6 +800,7 @@ public class TimeseriesQueryRunnerTest
             )
         )
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+        .descending(descending)
         .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -804,7 +832,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -823,6 +851,7 @@ public class TimeseriesQueryRunnerTest
                                       )
                                   )
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -854,7 +883,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -873,6 +902,7 @@ public class TimeseriesQueryRunnerTest
                                       )
                                   )
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -904,7 +934,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -923,6 +953,7 @@ public class TimeseriesQueryRunnerTest
                                       )
                                   )
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -954,7 +985,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -981,6 +1012,7 @@ public class TimeseriesQueryRunnerTest
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -1012,7 +1044,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -1039,6 +1071,7 @@ public class TimeseriesQueryRunnerTest
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -1070,7 +1103,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -1097,6 +1130,7 @@ public class TimeseriesQueryRunnerTest
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -1128,7 +1162,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -1153,6 +1187,7 @@ public class TimeseriesQueryRunnerTest
                                       )
                                   )
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -1184,7 +1219,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
 
@@ -1213,6 +1248,7 @@ public class TimeseriesQueryRunnerTest
                                       )
                                   )
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -1244,7 +1280,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -1275,6 +1311,7 @@ public class TimeseriesQueryRunnerTest
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -1306,7 +1343,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -1319,6 +1356,7 @@ public class TimeseriesQueryRunnerTest
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -1350,7 +1388,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -1364,6 +1402,7 @@ public class TimeseriesQueryRunnerTest
                                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
                                   .context(ImmutableMap.<String, Object>of("skipEmptyBuckets", "true"))
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList();
@@ -1372,7 +1411,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, new HashMap<String, Object>()),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -1385,6 +1424,7 @@ public class TimeseriesQueryRunnerTest
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -1416,7 +1456,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, new HashMap<String, Object>()),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -1429,6 +1469,7 @@ public class TimeseriesQueryRunnerTest
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -1460,7 +1501,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, new HashMap<String, Object>()),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -1473,6 +1514,7 @@ public class TimeseriesQueryRunnerTest
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -1504,7 +1546,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -1531,6 +1573,7 @@ public class TimeseriesQueryRunnerTest
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -1562,7 +1605,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, results);
+    assertExpectedResults(expectedResults, results);
   }
 
   @Test
@@ -1579,6 +1622,7 @@ public class TimeseriesQueryRunnerTest
                                           QueryRunnerTestHelper.jsPlacementishCount
                                       )
                                   )
+                                  .descending(descending)
                                   .build();
 
     Iterable<Result<TimeseriesResultValue>> expectedResults = ImmutableList.of(
@@ -1602,7 +1646,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, actualResults);
+    assertExpectedResults(expectedResults, actualResults);
   }
 
   @Test
@@ -1620,9 +1664,10 @@ public class TimeseriesQueryRunnerTest
                                           QueryRunnerTestHelper.jsPlacementishCount
                                       )
                                   )
+                                  .descending(descending)
                                   .build();
 
-    Iterable<Result<TimeseriesResultValue>> expectedResults = ImmutableList.of(
+    List<Result<TimeseriesResultValue>> expectedResults = ImmutableList.of(
         new Result<>(
             new DateTime(
                 QueryRunnerTestHelper.firstToThird.getIntervals()
@@ -1643,7 +1688,7 @@ public class TimeseriesQueryRunnerTest
         runner.run(query, CONTEXT),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
-    TestHelper.assertExpectedResults(expectedResults, actualResults);
+    assertExpectedResults(expectedResults, actualResults);
   }
 
   @Test
@@ -1656,6 +1701,7 @@ public class TimeseriesQueryRunnerTest
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     Iterable<Result<TimeseriesResultValue>> expectedResults = Sequences.toList(
@@ -1666,6 +1712,7 @@ public class TimeseriesQueryRunnerTest
                   .intervals(QueryRunnerTestHelper.firstToThird)
                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                  .descending(descending)
                   .build(),
             CONTEXT
         ),
@@ -1688,6 +1735,7 @@ public class TimeseriesQueryRunnerTest
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     Iterable<Result<TimeseriesResultValue>> expectedResults = Sequences.toList(
@@ -1699,6 +1747,7 @@ public class TimeseriesQueryRunnerTest
                   .intervals(QueryRunnerTestHelper.firstToThird)
                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                  .descending(descending)
                   .build(),
             CONTEXT
         ),
@@ -1735,6 +1784,7 @@ public class TimeseriesQueryRunnerTest
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     AndDimFilter andDimFilter2 = Druids.newAndDimFilterBuilder()
@@ -1761,6 +1811,7 @@ public class TimeseriesQueryRunnerTest
                   .intervals(QueryRunnerTestHelper.firstToThird)
                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                  .descending(descending)
                   .build(),
             CONTEXT
         ),
@@ -1796,6 +1847,7 @@ public class TimeseriesQueryRunnerTest
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     AndDimFilter andDimFilter2 = Druids.newAndDimFilterBuilder()
@@ -1825,6 +1877,7 @@ public class TimeseriesQueryRunnerTest
                   .intervals(QueryRunnerTestHelper.firstToThird)
                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                  .descending(descending)
                   .build(),
             CONTEXT
         ),
@@ -1861,6 +1914,7 @@ public class TimeseriesQueryRunnerTest
                                       )
                                   )
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
@@ -1882,7 +1936,7 @@ public class TimeseriesQueryRunnerTest
         )
     );
 
-    TestHelper.assertExpectedResults(expectedResults, actualResults);
+    assertExpectedResults(expectedResults, actualResults);
   }
 
   @Test
@@ -1909,6 +1963,7 @@ public class TimeseriesQueryRunnerTest
                                       )
                                   )
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
@@ -1931,7 +1986,7 @@ public class TimeseriesQueryRunnerTest
         )
     );
 
-    TestHelper.assertExpectedResults(expectedResults, actualResults);
+    assertExpectedResults(expectedResults, actualResults);
   }
 
   @Test
@@ -1958,6 +2013,7 @@ public class TimeseriesQueryRunnerTest
                                       )
                                   )
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
@@ -1980,7 +2036,7 @@ public class TimeseriesQueryRunnerTest
         )
     );
 
-    TestHelper.assertExpectedResults(expectedResults, actualResults);
+    assertExpectedResults(expectedResults, actualResults);
   }
 
   @Test
@@ -2009,6 +2065,7 @@ public class TimeseriesQueryRunnerTest
                                       )
                                   )
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
@@ -2030,7 +2087,7 @@ public class TimeseriesQueryRunnerTest
         )
     );
 
-    TestHelper.assertExpectedResults(expectedResults, actualResults);
+    assertExpectedResults(expectedResults, actualResults);
   }
 
   @Test
@@ -2059,6 +2116,7 @@ public class TimeseriesQueryRunnerTest
                                       )
                                   )
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
+                                  .descending(descending)
                                   .build();
 
     Iterable<Result<TimeseriesResultValue>> actualResults = Sequences.toList(
@@ -2080,7 +2138,7 @@ public class TimeseriesQueryRunnerTest
         )
     );
 
-    TestHelper.assertExpectedResults(expectedResults, actualResults);
+    assertExpectedResults(expectedResults, actualResults);
   }
 
   @Test
@@ -2097,6 +2155,7 @@ public class TimeseriesQueryRunnerTest
                                       )
                                   )
                                   .granularity(QueryRunnerTestHelper.allGran)
+                                  .descending(descending)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -2120,6 +2179,6 @@ public class TimeseriesQueryRunnerTest
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
 
-    TestHelper.assertExpectedResults(expectedResults, actualResults);
+    assertExpectedResults(expectedResults, actualResults);
   }
 }

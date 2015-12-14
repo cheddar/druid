@@ -80,7 +80,9 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   }
 
   @Override
-  public QueryRunner<Result<SelectResultValue>> mergeResults(QueryRunner<Result<SelectResultValue>> queryRunner)
+  public QueryRunner<Result<SelectResultValue>> mergeResults(
+      QueryRunner<Result<SelectResultValue>> queryRunner
+  )
   {
     return new ResultMergeQueryRunner<Result<SelectResultValue>>(queryRunner)
     {
@@ -89,7 +91,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       {
         return Ordering.from(
             new ResultGranularTimestampComparator<SelectResultValue>(
-                ((SelectQuery) query).getGranularity()
+                ((SelectQuery) query).getGranularity(), query.isDescending()
             )
         );
       }
@@ -102,22 +104,29 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
         SelectQuery query = (SelectQuery) input;
         return new SelectBinaryFn(
             query.getGranularity(),
-            query.getPagingSpec()
+            query.getPagingSpec(),
+            query.isDescending()
         );
       }
     };
   }
 
   @Override
-  public Sequence<Result<SelectResultValue>> mergeSequences(Sequence<Sequence<Result<SelectResultValue>>> seqOfSequences)
+  public Sequence<Result<SelectResultValue>> mergeSequences(
+      Sequence<Sequence<Result<SelectResultValue>>> seqOfSequences,
+      boolean descending
+  )
   {
-    return new OrderedMergeSequence<>(getOrdering(), seqOfSequences);
+    return new OrderedMergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
-  public Sequence<Result<SelectResultValue>> mergeSequencesUnordered(Sequence<Sequence<Result<SelectResultValue>>> seqOfSequences)
+  public Sequence<Result<SelectResultValue>> mergeSequencesUnordered(
+      Sequence<Sequence<Result<SelectResultValue>>> seqOfSequences,
+      boolean descending
+  )
   {
-    return new MergeSequence<>(getOrdering(), seqOfSequences);
+    return new MergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
@@ -265,7 +274,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       @Override
       public Sequence<Result<SelectResultValue>> mergeSequences(Sequence<Sequence<Result<SelectResultValue>>> seqOfSequences)
       {
-        return new MergeSequence<Result<SelectResultValue>>(getOrdering(), seqOfSequences);
+        return new MergeSequence<Result<SelectResultValue>>(getOrdering(query.isDescending()), seqOfSequences);
       }
     };
   }
@@ -276,8 +285,9 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
     return intervalChunkingQueryRunnerDecorator.decorate(runner, this);
   }
 
-  public Ordering<Result<SelectResultValue>> getOrdering()
+  @Override
+  public Ordering<Result<SelectResultValue>> getOrdering(boolean descending)
   {
-    return Ordering.natural();
+    return super.getOrdering(descending);
   }
 }

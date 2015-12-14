@@ -930,7 +930,8 @@ public class CachingClusteredClientTest
             new TopNQueryQueryToolChest(
                 new TopNQueryConfig(),
                 QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-            )
+            ),
+            false
         )
     );
   }
@@ -2224,7 +2225,7 @@ public class CachingClusteredClientTest
           @Override
           public boolean isQueryCacheable(Query query)
           {
-            return true;
+            return !query.isDescending();
           }
 
           @Override

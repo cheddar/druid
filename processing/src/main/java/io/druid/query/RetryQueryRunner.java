@@ -93,7 +93,10 @@ public class RetryQueryRunner<T> implements QueryRunner<T>
           if (!config.isReturnPartialResults() && !finalMissingSegs.isEmpty()) {
             throw new SegmentMissingException("No results found for segments[%s]", finalMissingSegs);
           }
-          return toolChest.mergeSequencesUnordered(Sequences.simple(listOfSequences)).toYielder(initValue, accumulator);
+          return toolChest.mergeSequencesUnordered(Sequences.simple(listOfSequences), query.isDescending()).toYielder(
+              initValue,
+              accumulator
+          );
         }
         else {
           return Iterables.getOnlyElement(listOfSequences).toYielder(initValue, accumulator);

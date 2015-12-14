@@ -20,9 +20,12 @@
 package io.druid.segment;
 
 import com.google.common.base.Function;
+import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.guava.CloseQuietly;
@@ -158,7 +161,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   }
 
   @Override
-  public Sequence<Cursor> makeCursors(Filter filter, Interval interval, QueryGranularity gran)
+  public Sequence<Cursor> makeCursors(Filter filter, Interval interval, QueryGranularity gran, boolean descending)
   {
     Interval actualInterval = interval;
 
@@ -182,18 +185,26 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
     final Offset offset;
     if (filter == null) {
-      offset = new NoFilterOffset(0, index.getNumRows());
+      offset = new NoFilterOffset(0, index.getNumRows(), descending);
     } else {
       final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(
           index.getBitmapFactoryForDimensions(),
           index
       );
 
-      offset = new BitmapOffset(selector.getBitmapFactory(), filter.getBitmapIndex(selector));
+      offset = new BitmapOffset(selector.getBitmapFactory(), filter.getBitmapIndex(selector), descending);
     }
 
     return Sequences.filter(
-        new CursorSequenceBuilder(index, actualInterval, gran, offset, maxDataTimestamp).build(),
+        new CursorSequenceBuilder(
+            index,
+            actualInterval,
+            gran,
+            offset,
+            minDataTimestamp,
+            maxDataTimestamp,
+            descending
+        ).build(),
         Predicates.<Cursor>notNull()
     );
   }
@@ -204,21 +215,27 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     private final Interval interval;
     private final QueryGranularity gran;
     private final Offset offset;
+    private final long minDataTimestamp;
     private final long maxDataTimestamp;
+    private final boolean descending;
 
     public CursorSequenceBuilder(
         ColumnSelector index,
         Interval interval,
         QueryGranularity gran,
         Offset offset,
-        long maxDataTimestamp
+        long minDataTimestamp,
+        long maxDataTimestamp,
+        boolean descending
     )
     {
       this.index = index;
       this.interval = interval;
       this.gran = gran;
       this.offset = offset;
+      this.minDataTimestamp = minDataTimestamp;
       this.maxDataTimestamp = maxDataTimestamp;
+      this.descending = descending;
     }
 
     public Sequence<Cursor> build()
@@ -232,23 +249,45 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
       final GenericColumn timestamps = index.getColumn(Column.TIME_COLUMN_NAME).getGenericColumn();
 
+      Iterable<Long> iterable = gran.iterable(interval.getStartMillis(), interval.getEndMillis());
+      if (descending) {
+        iterable = Lists.reverse(ImmutableList.copyOf(iterable));
+      }
+
+      // to remove branch in a loop
+      final Predicate<long[]> breakCondition = descending ? new Predicate<long[]>()
+      {
+        @Override
+        public boolean apply(long[] input) { return input[2] < input[1]; }
+      } : new Predicate<long[]>()
+      {
+        @Override
+        public boolean apply(long[] input) { return input[2] >= input[0]; }
+      };
+
       return Sequences.withBaggage(
           Sequences.map(
-              Sequences.simple(gran.iterable(interval.getStartMillis(), interval.getEndMillis())),
+              Sequences.simple(iterable),
               new Function<Long, Cursor>()
               {
                 @Override
                 public Cursor apply(final Long input)
                 {
                   final long timeStart = Math.max(interval.getStartMillis(), input);
-                  while (baseOffset.withinBounds()
-                         && timestamps.getLongSingleValueRow(baseOffset.getOffset()) < timeStart) {
+                  final long timeEnd = Math.min(interval.getEndMillis(), gran.next(input));
+                  final long[] timeSpec = new long[] {timeStart, timeEnd, 0};
+
+                  while (baseOffset.withinBounds()) {
+                    timeSpec[2] = timestamps.getLongSingleValueRow(baseOffset.getOffset());
+                    if (breakCondition.apply(timeSpec)) {
+                      break;
+                    }
                     baseOffset.increment();
                   }
 
-                  long threshold = Math.min(interval.getEndMillis(), gran.next(input));
                   final Offset offset = new TimestampCheckingOffset(
-                      baseOffset, timestamps, threshold, maxDataTimestamp < threshold
+                      baseOffset, timestamps, timeStart, timeEnd,
+                      minDataTimestamp >= timeStart && maxDataTimestamp < timeEnd
                   );
 
                   return new Cursor()
@@ -306,7 +345,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       }
 
                       if (dimension.equals(Column.TIME_COLUMN_NAME)) {
-                        return new SingleScanTimeDimSelector(makeLongColumnSelector(dimension), extractionFn);
+                        return new SingleScanTimeDimSelector(makeLongColumnSelector(dimension), extractionFn, descending);
                       }
 
                       DictionaryEncodedColumn cachedColumn = dictionaryColumnCache.get(dimension);
@@ -679,19 +718,22 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   {
     private final Offset baseOffset;
     private final GenericColumn timestamps;
-    private final long threshold;
+    private final long timeStart;
+    private final long timeEnd;
     private final boolean allWithinThreshold;
 
     public TimestampCheckingOffset(
         Offset baseOffset,
         GenericColumn timestamps,
-        long threshold,
+        long timeStart,
+        long timeEnd,
         boolean allWithinThreshold
     )
     {
       this.baseOffset = baseOffset;
       this.timestamps = timestamps;
-      this.threshold = threshold;
+      this.timeStart = timeStart;
+      this.timeEnd = timeEnd;
       // checks if all the values are within the Threshold specified, skips timestamp lookups and checks if all values are within threshold.
       this.allWithinThreshold = allWithinThreshold;
     }
@@ -705,14 +747,20 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     @Override
     public Offset clone()
     {
-      return new TimestampCheckingOffset(baseOffset.clone(), timestamps, threshold, allWithinThreshold);
+      return new TimestampCheckingOffset(baseOffset.clone(), timestamps, timeStart, timeEnd, allWithinThreshold);
     }
 
     @Override
     public boolean withinBounds()
     {
-      return baseOffset.withinBounds() && (allWithinThreshold
-                                           || timestamps.getLongSingleValueRow(baseOffset.getOffset()) < threshold);
+      if (!baseOffset.withinBounds()) {
+        return false;
+      }
+      if (allWithinThreshold) {
+        return true;
+      }
+      long current = timestamps.getLongSingleValueRow(baseOffset.getOffset());
+      return current >= timeStart && current < timeEnd;
     }
 
     @Override
@@ -720,17 +768,25 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     {
       baseOffset.increment();
     }
+
+    public String toString() {
+      return timeStart + ":" +
+             (baseOffset.withinBounds() ? timestamps.getLongSingleValueRow(baseOffset.getOffset()) : "-") + ":" +
+             timeEnd + "::" + baseOffset;
+    }
   }
 
   private static class NoFilterOffset implements Offset
   {
     private final int rowCount;
+    private final boolean descending;
     private volatile int currentOffset;
 
-    NoFilterOffset(int currentOffset, int rowCount)
+    NoFilterOffset(int currentOffset, int rowCount, boolean descending)
     {
       this.currentOffset = currentOffset;
       this.rowCount = rowCount;
+      this.descending = descending;
     }
 
     @Override
@@ -748,13 +804,17 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     @Override
     public Offset clone()
     {
-      return new NoFilterOffset(currentOffset, rowCount);
+      return new NoFilterOffset(currentOffset, rowCount, descending);
     }
 
     @Override
     public int getOffset()
     {
-      return currentOffset;
+      return descending ? rowCount - currentOffset - 1 : currentOffset;
+    }
+
+    public String toString() {
+      return currentOffset + "/" + rowCount + (descending ? "(DSC)" : "");
     }
   }
 

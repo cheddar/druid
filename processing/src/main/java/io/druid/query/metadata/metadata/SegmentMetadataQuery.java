@@ -100,6 +100,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
         dataSource,
         (querySegmentSpec == null) ? new MultipleIntervalSegmentSpec(Arrays.asList(DEFAULT_INTERVAL))
                                    : querySegmentSpec,
+        false,
         context
     );
 

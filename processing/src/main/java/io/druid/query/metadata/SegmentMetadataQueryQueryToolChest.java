@@ -94,7 +94,7 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
           };
         }
 
-        return getOrdering(); // No two elements should be equal, so it should never merge
+        return getOrdering(query.isDescending()); // No two elements should be equal, so it should never merge
       }
 
       @Override
@@ -142,15 +142,21 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
   }
 
   @Override
-  public Sequence<SegmentAnalysis> mergeSequences(Sequence<Sequence<SegmentAnalysis>> seqOfSequences)
+  public Sequence<SegmentAnalysis> mergeSequences(
+      Sequence<Sequence<SegmentAnalysis>> seqOfSequences,
+      boolean descending
+  )
   {
-    return new OrderedMergeSequence<>(getOrdering(), seqOfSequences);
+    return new OrderedMergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
-  public Sequence<SegmentAnalysis> mergeSequencesUnordered(Sequence<Sequence<SegmentAnalysis>> seqOfSequences)
+  public Sequence<SegmentAnalysis> mergeSequencesUnordered(
+      Sequence<Sequence<SegmentAnalysis>> seqOfSequences,
+      boolean descending
+  )
   {
-    return new MergeSequence<>(getOrdering(), seqOfSequences);
+    return new MergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
@@ -174,7 +180,7 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
   }
 
   @Override
-  public CacheStrategy<SegmentAnalysis, SegmentAnalysis, SegmentMetadataQuery> getCacheStrategy(SegmentMetadataQuery query)
+  public CacheStrategy<SegmentAnalysis, SegmentAnalysis, SegmentMetadataQuery> getCacheStrategy(final SegmentMetadataQuery query)
   {
     return new CacheStrategy<SegmentAnalysis, SegmentAnalysis, SegmentMetadataQuery>()
     {
@@ -225,7 +231,7 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
       @Override
       public Sequence<SegmentAnalysis> mergeSequences(Sequence<Sequence<SegmentAnalysis>> seqOfSequences)
       {
-        return new MergeSequence<SegmentAnalysis>(getOrdering(), seqOfSequences);
+        return new MergeSequence<SegmentAnalysis>(getOrdering(query.isDescending()), seqOfSequences);
       }
     };
   }
@@ -261,15 +267,20 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
     );
   }
 
-  private Ordering<SegmentAnalysis> getOrdering()
+  @Override
+  public Ordering<SegmentAnalysis> getOrdering(boolean descending)
   {
-    return new Ordering<SegmentAnalysis>()
+    Ordering<SegmentAnalysis> ordering = new Ordering<SegmentAnalysis>()
     {
       @Override
       public int compare(SegmentAnalysis left, SegmentAnalysis right)
       {
         return left.getId().compareTo(right.getId());
       }
-    }.nullsFirst();
+    };
+    if (descending) {
+      ordering = ordering.reverse();
+    }
+    return ordering.nullsFirst();
   }
 }

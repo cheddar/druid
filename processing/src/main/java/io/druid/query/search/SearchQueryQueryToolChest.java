@@ -86,7 +86,9 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
   }
 
   @Override
-  public QueryRunner<Result<SearchResultValue>> mergeResults(QueryRunner<Result<SearchResultValue>> runner)
+  public QueryRunner<Result<SearchResultValue>> mergeResults(
+      QueryRunner<Result<SearchResultValue>> runner
+  )
   {
     return new ResultMergeQueryRunner<Result<SearchResultValue>>(runner)
     {
@@ -94,7 +96,10 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
       protected Ordering<Result<SearchResultValue>> makeOrdering(Query<Result<SearchResultValue>> query)
       {
         return Ordering.from(
-            new ResultGranularTimestampComparator<SearchResultValue>(((SearchQuery) query).getGranularity())
+            new ResultGranularTimestampComparator<SearchResultValue>(
+                ((SearchQuery) query).getGranularity(),
+                query.isDescending()
+            )
         );
       }
 
@@ -110,15 +115,21 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
   }
 
   @Override
-  public Sequence<Result<SearchResultValue>> mergeSequences(Sequence<Sequence<Result<SearchResultValue>>> seqOfSequences)
+  public Sequence<Result<SearchResultValue>> mergeSequences(
+      Sequence<Sequence<Result<SearchResultValue>>> seqOfSequences,
+      boolean descending
+  )
   {
-    return new OrderedMergeSequence<>(getOrdering(), seqOfSequences);
+    return new OrderedMergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
-  public Sequence<Result<SearchResultValue>> mergeSequencesUnordered(Sequence<Sequence<Result<SearchResultValue>>> seqOfSequences)
+  public Sequence<Result<SearchResultValue>> mergeSequencesUnordered(
+      Sequence<Sequence<Result<SearchResultValue>>> seqOfSequences,
+      boolean descending
+  )
   {
-    return new MergeSequence<>(getOrdering(), seqOfSequences);
+    return new MergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
@@ -142,7 +153,7 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
   }
 
   @Override
-  public CacheStrategy<Result<SearchResultValue>, Object, SearchQuery> getCacheStrategy(SearchQuery query)
+  public CacheStrategy<Result<SearchResultValue>, Object, SearchQuery> getCacheStrategy(final SearchQuery query)
   {
     return new CacheStrategy<Result<SearchResultValue>, Object, SearchQuery>()
     {
@@ -247,7 +258,7 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
       @Override
       public Sequence<Result<SearchResultValue>> mergeSequences(Sequence<Sequence<Result<SearchResultValue>>> seqOfSequences)
       {
-        return new MergeSequence<Result<SearchResultValue>>(getOrdering(), seqOfSequences);
+        return new MergeSequence<Result<SearchResultValue>>(getOrdering(query.isDescending()), seqOfSequences);
       }
     };
   }
@@ -261,9 +272,10 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
     );
   }
 
-  public Ordering<Result<SearchResultValue>> getOrdering()
+  @Override
+  public Ordering<Result<SearchResultValue>> getOrdering(boolean descending)
   {
-    return Ordering.natural();
+    return super.getOrdering(descending);
   }
 
   private static class SearchThresholdAdjustingQueryRunner implements QueryRunner<Result<SearchResultValue>>

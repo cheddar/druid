@@ -29,18 +29,23 @@ import java.util.Comparator;
 public class ResultGranularTimestampComparator<T> implements Comparator<Result<T>>
 {
   private final QueryGranularity gran;
+  private final boolean descending;
 
-  public ResultGranularTimestampComparator(QueryGranularity granularity)
+  public ResultGranularTimestampComparator(QueryGranularity granularity, boolean descending)
   {
     this.gran = granularity;
+    this.descending = descending;
   }
 
   @Override
   public int compare(Result<T> r1, Result<T> r2)
   {
-    return Longs.compare(
-        gran.truncate(r1.getTimestamp().getMillis()),
-        gran.truncate(r2.getTimestamp().getMillis())
-    );
+    long t1 = r1.getTimestamp().getMillis();
+    long t2 = r2.getTimestamp().getMillis();
+    if (t1 == t2) {
+      return 0;
+    }
+    int compare = Longs.compare(gran.truncate(t1), gran.truncate(t2));
+    return descending ? -compare : compare;
   }
 }

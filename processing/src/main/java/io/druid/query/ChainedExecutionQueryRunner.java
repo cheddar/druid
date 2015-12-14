@@ -64,12 +64,12 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
 
   private final Iterable<QueryRunner<T>> queryables;
   private final ListeningExecutorService exec;
-  private final Ordering<T> ordering;
+  private final OrderingFactory factory;
   private final QueryWatcher queryWatcher;
 
   public ChainedExecutionQueryRunner(
       ExecutorService exec,
-      Ordering<T> ordering,
+      OrderingFactory ordering,
       QueryWatcher queryWatcher,
       QueryRunner<T>... queryables
   )
@@ -79,7 +79,7 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
 
   public ChainedExecutionQueryRunner(
       ExecutorService exec,
-      Ordering<T> ordering,
+      OrderingFactory factory,
       QueryWatcher queryWatcher,
       Iterable<QueryRunner<T>> queryables
   )
@@ -87,7 +87,7 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
     // listeningDecorator will leave PrioritizedExecutorService unchanged,
     // since it already implements ListeningExecutorService
     this.exec = MoreExecutors.listeningDecorator(exec);
-    this.ordering = ordering;
+    this.factory = factory;
     this.queryables = Iterables.unmodifiableIterable(queryables);
     this.queryWatcher = queryWatcher;
   }
@@ -96,6 +96,7 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
   public Sequence<T> run(final Query<T> query, final Map<String, Object> responseContext)
   {
     final int priority = query.getContextPriority(0);
+    final Ordering ordering = factory.create(query);
 
     return new BaseSequence<T, Iterator<T>>(
         new BaseSequence.IteratorMaker<T, Iterator<T>>()

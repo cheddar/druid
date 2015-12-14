@@ -259,7 +259,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   private Sequence<Row> postAggregate(final GroupByQuery query, IncrementalIndex index)
   {
     return Sequences.map(
-        Sequences.simple(index.iterableWithPostAggregations(query.getPostAggregatorSpecs())),
+        Sequences.simple(index.iterableWithPostAggregations(query.getPostAggregatorSpecs(), query.isDescending())),
         new Function<Row, Row>()
         {
           @Override
@@ -289,20 +289,21 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   }
 
   @Override
-  public Sequence<Row> mergeSequences(Sequence<Sequence<Row>> seqOfSequences)
+  public Sequence<Row> mergeSequences(Sequence<Sequence<Row>> seqOfSequences, boolean descending)
   {
-    return new OrderedMergeSequence<>(getOrdering(), seqOfSequences);
+    return new OrderedMergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
-  public Sequence<Row> mergeSequencesUnordered(Sequence<Sequence<Row>> seqOfSequences)
+  public Sequence<Row> mergeSequencesUnordered(Sequence<Sequence<Row>> seqOfSequences, boolean descending)
   {
-    return new MergeSequence<>(getOrdering(), seqOfSequences);
+    return new MergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
-  private Ordering<Row> getOrdering()
+  @Override
+  public Ordering<Row> getOrdering(boolean descending)
   {
-    return Ordering.<Row>natural().nullsFirst();
+    return super.getOrdering(descending).nullsFirst();
   }
 
   @Override
@@ -584,7 +585,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       @Override
       public Sequence<Row> mergeSequences(Sequence<Sequence<Row>> seqOfSequences)
       {
-        return new MergeSequence<>(getOrdering(), seqOfSequences);
+        return new MergeSequence<>(getOrdering(query.isDescending()), seqOfSequences);
       }
     };
   }

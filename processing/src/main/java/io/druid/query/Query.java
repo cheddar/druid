@@ -62,6 +62,8 @@ public interface Query<T>
 
   public DataSource getDataSource();
 
+  public boolean isDescending();
+
   public boolean hasFilters();
 
   public String getType();

@@ -19,10 +19,12 @@
 
 package io.druid.query.select;
 
+import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import io.druid.query.ChainedExecutionQueryRunner;
+import io.druid.query.OrderingFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -37,7 +39,7 @@ import java.util.concurrent.ExecutorService;
 /**
  */
 public class SelectQueryRunnerFactory
-    implements QueryRunnerFactory<Result<SelectResultValue>, SelectQuery>
+    implements QueryRunnerFactory<Result<SelectResultValue>, SelectQuery>, OrderingFactory<SelectQuery>
 {
   private final SelectQueryQueryToolChest toolChest;
   private final SelectQueryEngine engine;
@@ -67,7 +69,7 @@ public class SelectQueryRunnerFactory
   )
   {
     return new ChainedExecutionQueryRunner<Result<SelectResultValue>>(
-        queryExecutor, toolChest.getOrdering(), queryWatcher, queryRunners
+        queryExecutor, this, queryWatcher, queryRunners
     );
   }
 
@@ -75,6 +77,12 @@ public class SelectQueryRunnerFactory
   public QueryToolChest<Result<SelectResultValue>, SelectQuery> getToolchest()
   {
     return toolChest;
+  }
+
+  @Override
+  public Ordering create(SelectQuery query)
+  {
+    return toolChest.getOrdering(query.isDescending());
   }
 
   private static class SelectQueryRunner implements QueryRunner<Result<SelectResultValue>>
