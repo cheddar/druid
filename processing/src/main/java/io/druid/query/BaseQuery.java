@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -34,8 +35,59 @@ import java.util.Map;
 
 /**
  */
-public abstract class BaseQuery<T> implements Query<T>
+public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
 {
+  public static <T> int getContextPriority(Query<T> query, int defaultValue)
+  {
+    Object val = query.getContextValue("priority");
+    if (val == null) {
+      return defaultValue;
+    }
+
+    if (val instanceof String) {
+      return Integer.parseInt((String) val);
+    } else if (val instanceof Integer) {
+      return (int) val;
+    } else {
+      throw new ISE("Unknown type [%s]", val.getClass());
+    }
+  }
+
+  public static <T> boolean getContextBySegment(Query<T> query, boolean defaultValue)
+  {
+    return parseBoolean(query, "bySegment", defaultValue);
+  }
+
+  public static <T> boolean getContextPopulateCache(Query<T> query, boolean defaultValue)
+  {
+    return parseBoolean(query, "populateCache", defaultValue);
+  }
+
+  public static <T> boolean getContextUseCache(Query<T> query, boolean defaultValue)
+  {
+    return parseBoolean(query, "useCache", defaultValue);
+  }
+
+  public static <T> boolean getContextFinalize(Query<T> query, boolean defaultValue)
+  {
+    return parseBoolean(query, "finalize", defaultValue);
+  }
+
+  private static <T> boolean parseBoolean(Query<T> query, String key, boolean defaultValue)
+  {
+    Object val = query.getContextValue(key);
+    if (val == null) {
+      return defaultValue;
+    }
+    if (val instanceof String) {
+      return Boolean.parseBoolean((String) val);
+    } else if (val instanceof Boolean) {
+      return (boolean) val;
+    } else {
+      throw new ISE("Unknown type [%s]. Cannot parse!", val.getClass());
+    }
+  }
+
   public static final String QUERYID = "queryId";
   private final DataSource dataSource;
   private final boolean descending;
@@ -132,67 +184,6 @@ public abstract class BaseQuery<T> implements Query<T>
     return retVal == null ? defaultValue : retVal;
   }
 
-  @Override
-  public int getContextPriority(int defaultValue)
-  {
-    if (context == null) {
-      return defaultValue;
-    }
-    Object val = context.get("priority");
-    if (val == null) {
-      return defaultValue;
-    }
-    if (val instanceof String) {
-      return Integer.parseInt((String) val);
-    } else if (val instanceof Integer) {
-      return (int) val;
-    } else {
-      throw new ISE("Unknown type [%s]", val.getClass());
-    }
-  }
-
-  @Override
-  public boolean getContextBySegment(boolean defaultValue)
-  {
-    return parseBoolean("bySegment", defaultValue);
-  }
-
-  @Override
-  public boolean getContextPopulateCache(boolean defaultValue)
-  {
-    return parseBoolean("populateCache", defaultValue);
-  }
-
-  @Override
-  public boolean getContextUseCache(boolean defaultValue)
-  {
-    return parseBoolean("useCache", defaultValue);
-  }
-
-  @Override
-  public boolean getContextFinalize(boolean defaultValue)
-  {
-    return parseBoolean("finalize", defaultValue);
-  }
-
-  private boolean parseBoolean(String key, boolean defaultValue)
-  {
-    if (context == null) {
-      return defaultValue;
-    }
-    Object val = context.get(key);
-    if (val == null) {
-      return defaultValue;
-    }
-    if (val instanceof String) {
-      return Boolean.parseBoolean((String) val);
-    } else if (val instanceof Boolean) {
-      return (boolean) val;
-    } else {
-      throw new ISE("Unknown type [%s]. Cannot parse!", val.getClass());
-    }
-  }
-
   protected Map<String, Object> computeOverridenContext(Map<String, Object> overrides)
   {
     Map<String, Object> overridden = Maps.newTreeMap();
@@ -203,6 +194,13 @@ public abstract class BaseQuery<T> implements Query<T>
     overridden.putAll(overrides);
 
     return overridden;
+  }
+
+  @Override
+  public Ordering<T> getResultOrdering()
+  {
+    Ordering<T> retVal = Ordering.natural();
+    return descending ? retVal.reverse() : retVal;
   }
 
   @Override

@@ -30,12 +30,11 @@ import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
-import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.emitter.service.ServiceMetricEvent;
-import io.druid.collections.OrderedMergeSequence;
+import io.druid.query.BaseQuery;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
@@ -112,24 +111,6 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
         return new SearchBinaryFn(query.getSort(), query.getGranularity(), query.getLimit());
       }
     };
-  }
-
-  @Override
-  public Sequence<Result<SearchResultValue>> mergeSequences(
-      Sequence<Sequence<Result<SearchResultValue>>> seqOfSequences,
-      boolean descending
-  )
-  {
-    return new OrderedMergeSequence<>(getOrdering(descending), seqOfSequences);
-  }
-
-  @Override
-  public Sequence<Result<SearchResultValue>> mergeSequencesUnordered(
-      Sequence<Sequence<Result<SearchResultValue>>> seqOfSequences,
-      boolean descending
-  )
-  {
-    return new MergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
@@ -254,12 +235,6 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
           }
         };
       }
-
-      @Override
-      public Sequence<Result<SearchResultValue>> mergeSequences(Sequence<Sequence<Result<SearchResultValue>>> seqOfSequences)
-      {
-        return new MergeSequence<Result<SearchResultValue>>(getOrdering(query.isDescending()), seqOfSequences);
-      }
     };
   }
 
@@ -270,12 +245,6 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
         intervalChunkingQueryRunnerDecorator.decorate(runner, this),
         config
     );
-  }
-
-  @Override
-  public Ordering<Result<SearchResultValue>> getOrdering(boolean descending)
-  {
-    return super.getOrdering(descending);
   }
 
   private static class SearchThresholdAdjustingQueryRunner implements QueryRunner<Result<SearchResultValue>>
@@ -307,7 +276,7 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
         return runner.run(query, responseContext);
       }
 
-      final boolean isBySegment = query.getContextBySegment(false);
+      final boolean isBySegment = BaseQuery.getContextBySegment(query, false);
 
       return Sequences.map(
           runner.run(query.withLimit(config.getMaxSearchLimit()), responseContext),

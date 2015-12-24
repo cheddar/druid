@@ -21,7 +21,6 @@ package io.druid.query;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.metamx.common.guava.Sequence;
@@ -49,7 +48,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class ChainedExecutionQueryRunnerTest implements OrderingFactory
+public class ChainedExecutionQueryRunnerTest
 {
   private final Lock neverRelease = new ReentrantLock();
 
@@ -114,7 +113,6 @@ public class ChainedExecutionQueryRunnerTest implements OrderingFactory
 
     ChainedExecutionQueryRunner chainedRunner = new ChainedExecutionQueryRunner<>(
         exec,
-        this,
         watcher,
         Lists.<QueryRunner<Integer>>newArrayList(
          runners
@@ -242,7 +240,6 @@ public class ChainedExecutionQueryRunnerTest implements OrderingFactory
 
     ChainedExecutionQueryRunner chainedRunner = new ChainedExecutionQueryRunner<>(
         exec,
-        this,
         watcher,
         Lists.<QueryRunner<Integer>>newArrayList(
             runners
@@ -313,12 +310,6 @@ public class ChainedExecutionQueryRunnerTest implements OrderingFactory
     Assert.assertFalse("runner 3 not completed", remainingRunner.hasCompleted);
 
     EasyMock.verify(watcher);
-  }
-
-  @Override
-  public Ordering create(Query query)
-  {
-    return Ordering.natural();
   }
 
   private class DyingQueryRunner implements QueryRunner<Integer>

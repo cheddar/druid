@@ -434,8 +434,7 @@ public class QueryRunnerTestHelper
                     new BySegmentQueryRunner<T>(
                         segmentId, adapter.getDataInterval().getStart(),
                         factory.createRunner(adapter)
-                    ),
-                    factory.getToolchest()
+                    )
                 )
             )
         ),

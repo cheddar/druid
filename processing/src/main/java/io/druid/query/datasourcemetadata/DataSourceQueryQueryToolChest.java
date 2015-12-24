@@ -25,12 +25,9 @@ import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
-import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.service.ServiceMetricEvent;
-import io.druid.collections.OrderedMergeSequence;
 import io.druid.query.BySegmentSkippingQueryRunner;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DataSourceUtil;
@@ -105,24 +102,6 @@ public class DataSourceQueryQueryToolChest
   }
 
   @Override
-  public Sequence<Result<DataSourceMetadataResultValue>> mergeSequences(
-      Sequence<Sequence<Result<DataSourceMetadataResultValue>>> seqOfSequences,
-      boolean descending
-  )
-  {
-    return new OrderedMergeSequence<>(getOrdering(descending), seqOfSequences);
-  }
-
-  @Override
-  public Sequence<Result<DataSourceMetadataResultValue>> mergeSequencesUnordered(
-      Sequence<Sequence<Result<DataSourceMetadataResultValue>>> seqOfSequences,
-      boolean descending
-  )
-  {
-    return new MergeSequence<>(getOrdering(descending), seqOfSequences);
-  }
-
-  @Override
   public ServiceMetricEvent.Builder makeMetricBuilder(DataSourceMetadataQuery query)
   {
     return new ServiceMetricEvent.Builder()
@@ -148,11 +127,5 @@ public class DataSourceQueryQueryToolChest
   public CacheStrategy getCacheStrategy(DataSourceMetadataQuery query)
   {
     return null;
-  }
-
-  @Override
-  public Ordering<Result<DataSourceMetadataResultValue>> getOrdering(boolean descending)
-  {
-    return super.getOrdering(descending);
   }
 }

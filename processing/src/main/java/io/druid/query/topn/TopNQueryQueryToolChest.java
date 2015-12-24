@@ -28,13 +28,12 @@ import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
-import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.emitter.service.ServiceMetricEvent;
-import io.druid.collections.OrderedMergeSequence;
 import io.druid.granularity.QueryGranularity;
+import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
@@ -143,24 +142,6 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
         );
       }
     };
-  }
-
-  @Override
-  public Sequence<Result<TopNResultValue>> mergeSequences(
-      Sequence<Sequence<Result<TopNResultValue>>> seqOfSequences,
-      boolean descending
-  )
-  {
-    return new OrderedMergeSequence<>(getOrdering(descending), seqOfSequences);
-  }
-
-  @Override
-  public Sequence<Result<TopNResultValue>> mergeSequencesUnordered(
-      Sequence<Sequence<Result<TopNResultValue>>> seqOfSequences,
-      boolean descending
-  )
-  {
-    return new MergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
@@ -425,12 +406,6 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
           }
         };
       }
-
-      @Override
-      public Sequence<Result<TopNResultValue>> mergeSequences(Sequence<Sequence<Result<TopNResultValue>>> seqOfSequences)
-      {
-        return new MergeSequence<>(getOrdering(query.isDescending()), seqOfSequences);
-      }
     };
   }
 
@@ -531,12 +506,6 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
     };
   }
 
-  @Override
-  public Ordering<Result<TopNResultValue>> getOrdering(boolean descending)
-  {
-    return super.getOrdering(descending);
-  }
-
   private static class ThresholdAdjustingQueryRunner implements QueryRunner<Result<TopNResultValue>>
   {
     private final QueryRunner<Result<TopNResultValue>> runner;
@@ -566,7 +535,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
         return runner.run(query, responseContext);
       }
 
-      final boolean isBySegment = query.getContextBySegment(false);
+      final boolean isBySegment = BaseQuery.getContextBySegment(query, false);
 
       return Sequences.map(
           runner.run(query.withThreshold(minTopNThreshold), responseContext),

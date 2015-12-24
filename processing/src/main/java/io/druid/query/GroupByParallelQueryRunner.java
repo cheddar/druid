@@ -88,8 +88,8 @@ public class GroupByParallelQueryRunner<T> implements QueryRunner<T>
         bufferPool
     );
     final Pair<Queue, Accumulator<Queue, T>> bySegmentAccumulatorPair = GroupByQueryHelper.createBySegmentAccumulatorPair();
-    final boolean bySegment = query.getContextBySegment(false);
-    final int priority = query.getContextPriority(0);
+    final boolean bySegment = BaseQuery.getContextBySegment(query, false);
+    final int priority = BaseQuery.getContextPriority(query, 0);
 
     ListenableFuture<List<Void>> futures = Futures.allAsList(
         Lists.newArrayList(

@@ -19,13 +19,11 @@
 
 package io.druid.query.datasourcemetadata;
 
-import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.Sequence;
 import io.druid.query.ChainedExecutionQueryRunner;
-import io.druid.query.OrderingFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -42,7 +40,7 @@ import java.util.concurrent.ExecutorService;
 /**
  */
 public class DataSourceMetadataQueryRunnerFactory
-    implements QueryRunnerFactory<Result<DataSourceMetadataResultValue>, DataSourceMetadataQuery>, OrderingFactory<DataSourceMetadataQuery>
+    implements QueryRunnerFactory<Result<DataSourceMetadataResultValue>, DataSourceMetadataQuery>
 {
   private static final DataSourceQueryQueryToolChest toolChest = new DataSourceQueryQueryToolChest();
   private final QueryWatcher queryWatcher;
@@ -65,7 +63,7 @@ public class DataSourceMetadataQueryRunnerFactory
   )
   {
     return new ChainedExecutionQueryRunner<>(
-        queryExecutor, this, queryWatcher, queryRunners
+        queryExecutor, queryWatcher, queryRunners
     );
   }
 
@@ -73,12 +71,6 @@ public class DataSourceMetadataQueryRunnerFactory
   public QueryToolChest<Result<DataSourceMetadataResultValue>, DataSourceMetadataQuery> getToolchest()
   {
     return toolChest;
-  }
-
-  @Override
-  public Ordering create(DataSourceMetadataQuery query)
-  {
-    return toolChest.getOrdering(query.isDescending());
   }
 
   private static class DataSourceMetadataQueryRunner implements QueryRunner<Result<DataSourceMetadataResultValue>>

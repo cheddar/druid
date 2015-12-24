@@ -19,13 +19,11 @@
 
 package io.druid.query.timeboundary;
 
-import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.Sequence;
 import io.druid.query.ChainedExecutionQueryRunner;
-import io.druid.query.OrderingFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -43,7 +41,7 @@ import java.util.concurrent.ExecutorService;
 /**
  */
 public class TimeBoundaryQueryRunnerFactory
-    implements QueryRunnerFactory<Result<TimeBoundaryResultValue>, TimeBoundaryQuery>, OrderingFactory<TimeBoundaryQuery>
+    implements QueryRunnerFactory<Result<TimeBoundaryResultValue>, TimeBoundaryQuery>
 {
   private static final TimeBoundaryQueryQueryToolChest toolChest = new TimeBoundaryQueryQueryToolChest();
   private final QueryWatcher queryWatcher;
@@ -65,21 +63,13 @@ public class TimeBoundaryQueryRunnerFactory
       ExecutorService queryExecutor, Iterable<QueryRunner<Result<TimeBoundaryResultValue>>> queryRunners
   )
   {
-    return new ChainedExecutionQueryRunner<>(
-        queryExecutor, this, queryWatcher, queryRunners
-    );
+    return new ChainedExecutionQueryRunner<>(queryExecutor, queryWatcher, queryRunners);
   }
 
   @Override
   public QueryToolChest<Result<TimeBoundaryResultValue>, TimeBoundaryQuery> getToolchest()
   {
     return toolChest;
-  }
-
-  @Override
-  public Ordering create(TimeBoundaryQuery query)
-  {
-    return toolChest.getOrdering(query.isDescending());
   }
 
   private static class TimeBoundaryQueryRunner implements QueryRunner<Result<TimeBoundaryResultValue>>

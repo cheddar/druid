@@ -25,11 +25,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
-import com.metamx.common.guava.MergeSequence;
-import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.emitter.service.ServiceMetricEvent;
-import io.druid.collections.OrderedMergeSequence;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
@@ -104,24 +101,6 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
         );
       }
     };
-  }
-
-  @Override
-  public Sequence<Result<TimeseriesResultValue>> mergeSequences(
-      Sequence<Sequence<Result<TimeseriesResultValue>>> seqOfSequences,
-      boolean descending
-  )
-  {
-    return new OrderedMergeSequence<>(getOrdering(descending), seqOfSequences);
-  }
-
-  @Override
-  public Sequence<Result<TimeseriesResultValue>> mergeSequencesUnordered(
-      Sequence<Sequence<Result<TimeseriesResultValue>>> seqOfSequences,
-      boolean descending
-  )
-  {
-    return new MergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
@@ -225,12 +204,6 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
           }
         };
       }
-
-      @Override
-      public Sequence<Result<TimeseriesResultValue>> mergeSequences(Sequence<Sequence<Result<TimeseriesResultValue>>> seqOfSequences)
-      {
-        return new MergeSequence<Result<TimeseriesResultValue>>(getOrdering(query.isDescending()), seqOfSequences);
-      }
     };
   }
 
@@ -238,12 +211,6 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
   public QueryRunner<Result<TimeseriesResultValue>> preMergeQueryDecoration(QueryRunner<Result<TimeseriesResultValue>> runner)
   {
     return intervalChunkingQueryRunnerDecorator.decorate(runner, this);
-  }
-
-  @Override
-  public Ordering<Result<TimeseriesResultValue>> getOrdering(boolean descending)
-  {
-    return super.getOrdering(descending);
   }
 
   @Override

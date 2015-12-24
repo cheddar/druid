@@ -29,11 +29,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import com.metamx.common.guava.MergeSequence;
-import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.emitter.service.ServiceMetricEvent;
-import io.druid.collections.OrderedMergeSequence;
 import io.druid.common.utils.JodaUtils;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
@@ -94,7 +91,7 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
           };
         }
 
-        return getOrdering(query.isDescending()); // No two elements should be equal, so it should never merge
+        return query.getResultOrdering(); // No two elements should be equal, so it should never merge
       }
 
       @Override
@@ -139,24 +136,6 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
         };
       }
     };
-  }
-
-  @Override
-  public Sequence<SegmentAnalysis> mergeSequences(
-      Sequence<Sequence<SegmentAnalysis>> seqOfSequences,
-      boolean descending
-  )
-  {
-    return new OrderedMergeSequence<>(getOrdering(descending), seqOfSequences);
-  }
-
-  @Override
-  public Sequence<SegmentAnalysis> mergeSequencesUnordered(
-      Sequence<Sequence<SegmentAnalysis>> seqOfSequences,
-      boolean descending
-  )
-  {
-    return new MergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
@@ -227,12 +206,6 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
           }
         };
       }
-
-      @Override
-      public Sequence<SegmentAnalysis> mergeSequences(Sequence<Sequence<SegmentAnalysis>> seqOfSequences)
-      {
-        return new MergeSequence<SegmentAnalysis>(getOrdering(query.isDescending()), seqOfSequences);
-      }
     };
   }
 
@@ -265,22 +238,5 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
             }
         )
     );
-  }
-
-  @Override
-  public Ordering<SegmentAnalysis> getOrdering(boolean descending)
-  {
-    Ordering<SegmentAnalysis> ordering = new Ordering<SegmentAnalysis>()
-    {
-      @Override
-      public int compare(SegmentAnalysis left, SegmentAnalysis right)
-      {
-        return left.getId().compareTo(right.getId());
-      }
-    };
-    if (descending) {
-      ordering = ordering.reverse();
-    }
-    return ordering.nullsFirst();
   }
 }

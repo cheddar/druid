@@ -21,6 +21,7 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.common.collect.Ordering;
 import com.metamx.common.guava.Sequence;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import io.druid.query.groupby.GroupByQuery;
@@ -51,51 +52,46 @@ import java.util.Map;
 })
 public interface Query<T>
 {
-  public static final String TIMESERIES = "timeseries";
-  public static final String SEARCH = "search";
-  public static final String TIME_BOUNDARY = "timeBoundary";
-  public static final String GROUP_BY = "groupBy";
-  public static final String SEGMENT_METADATA = "segmentMetadata";
-  public static final String SELECT = "select";
-  public static final String TOPN = "topN";
-  public static final String DATASOURCE_METADATA = "dataSourceMetadata";
+  String TIMESERIES = "timeseries";
+  String SEARCH = "search";
+  String TIME_BOUNDARY = "timeBoundary";
+  String GROUP_BY = "groupBy";
+  String SEGMENT_METADATA = "segmentMetadata";
+  String SELECT = "select";
+  String TOPN = "topN";
+  String DATASOURCE_METADATA = "dataSourceMetadata";
 
-  public DataSource getDataSource();
+  DataSource getDataSource();
 
-  public boolean isDescending();
+  boolean hasFilters();
 
-  public boolean hasFilters();
+  String getType();
 
-  public String getType();
+  Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> context);
 
-  public Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> context);
+  Sequence<T> run(QueryRunner<T> runner, Map<String, Object> context);
 
-  public Sequence<T> run(QueryRunner<T> runner, Map<String, Object> context);
+  List<Interval> getIntervals();
 
-  public List<Interval> getIntervals();
+  Duration getDuration();
 
-  public Duration getDuration();
+  Map<String, Object> getContext();
 
-  public Map<String, Object> getContext();
+  <ContextType> ContextType getContextValue(String key);
 
-  public <ContextType> ContextType getContextValue(String key);
+  <ContextType> ContextType getContextValue(String key, ContextType defaultValue);
 
-  public <ContextType> ContextType getContextValue(String key, ContextType defaultValue);
+  boolean isDescending();
 
-  // For backwards compatibility
-  @Deprecated public int getContextPriority(int defaultValue);
-  @Deprecated public boolean getContextBySegment(boolean defaultValue);
-  @Deprecated public boolean getContextPopulateCache(boolean defaultValue);
-  @Deprecated public boolean getContextUseCache(boolean defaultValue);
-  @Deprecated public boolean getContextFinalize(boolean defaultValue);
+  Ordering<T> getResultOrdering();
 
-  public Query<T> withOverriddenContext(Map<String, Object> contextOverride);
+  Query<T> withOverriddenContext(Map<String, Object> contextOverride);
 
-  public Query<T> withQuerySegmentSpec(QuerySegmentSpec spec);
+  Query<T> withQuerySegmentSpec(QuerySegmentSpec spec);
 
-  public Query<T> withId(String id);
+  Query<T> withId(String id);
 
-  public String getId();
+  String getId();
 
   Query<T> withDataSource(DataSource dataSource);
 }

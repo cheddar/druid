@@ -19,25 +19,21 @@
 
 package io.druid.query.search;
 
-import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import io.druid.query.ChainedExecutionQueryRunner;
-import io.druid.query.OrderingFactory;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
 import io.druid.query.search.search.SearchQuery;
-import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.Segment;
 
 import java.util.concurrent.ExecutorService;
 
 /**
  */
-public class SearchQueryRunnerFactory implements QueryRunnerFactory<Result<SearchResultValue>, SearchQuery>,
-    OrderingFactory<SearchQuery>
+public class SearchQueryRunnerFactory implements QueryRunnerFactory<Result<SearchResultValue>, SearchQuery>
 {
   private final SearchQueryQueryToolChest toolChest;
   private final QueryWatcher queryWatcher;
@@ -64,7 +60,7 @@ public class SearchQueryRunnerFactory implements QueryRunnerFactory<Result<Searc
   )
   {
     return new ChainedExecutionQueryRunner<Result<SearchResultValue>>(
-        queryExecutor, this, queryWatcher, queryRunners
+        queryExecutor, queryWatcher, queryRunners
     );
   }
 
@@ -72,11 +68,5 @@ public class SearchQueryRunnerFactory implements QueryRunnerFactory<Result<Searc
   public QueryToolChest<Result<SearchResultValue>, SearchQuery> getToolchest()
   {
     return toolChest;
-  }
-
-  @Override
-  public Ordering create(SearchQuery query)
-  {
-    return toolChest.getOrdering(query.isDescending());
   }
 }

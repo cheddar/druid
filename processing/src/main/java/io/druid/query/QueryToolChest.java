@@ -21,8 +21,6 @@ package io.druid.query;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
-import com.google.common.collect.Ordering;
-import com.metamx.common.guava.Sequence;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.timeline.LogicalSegment;
@@ -45,44 +43,6 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    * @return a QueryRunner that potentially merges the stream of ordered ResultType objects
    */
   public abstract QueryRunner<ResultType> mergeResults(QueryRunner<ResultType> runner);
-
-  /**
-   * This method doesn't belong here, but it's here for now just to make it work.  The method needs to
-   * take a Sequence of Sequences and return a single Sequence of ResultType objects in time-order (ascending or descending)
-   *
-   * This method assumes that its input sequences provide values already in sorted order.
-   * Even more specifically, it assumes that the individual sequences are also ordered by their first element.
-   *
-   * In the vast majority of cases, this should just be implemented with:
-   *
-   *     return new OrderedMergeSequence<>(getOrdering(), seqOfSequences);
-   *
-   * @param seqOfSequences sequence of sequences to be merged
-   * @param descending order of input and output sequence
-   * @return the sequence of merged results
-   */
-  public abstract Sequence<ResultType> mergeSequences(Sequence<Sequence<ResultType>> seqOfSequences, boolean descending);
-
-  /**
-   * This method doesn't belong here, but it's here for now just to make it work.  The method needs to
-   * take a Sequence of Sequences and return a single Sequence of ResultType objects in time-order (ascending or descending)
-   *
-   * This method assumes that its input sequences provide values already in sorted order, but, unlike
-   * mergeSequences, it does *not* assume that the individual sequences are also ordered by their first element.
-   *
-   * In the vast majority if ocases, this should just be implemented with:
-   *
-   *     return new MergeSequence<>(getOrdering(), seqOfSequences);
-   *
-   * @param seqOfSequences sequence of sequences to be merged
-   * @param descending order of input and output sequence
-   * @return the sequence of merged results
-   */
-  public abstract Sequence<ResultType> mergeSequencesUnordered(
-      Sequence<Sequence<ResultType>> seqOfSequences,
-      boolean descending
-  );
-
 
   /**
    * Creates a builder that is used to generate a metric for this specific query type.  This exists
@@ -200,14 +160,5 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   public <T extends LogicalSegment> List<T> filterSegments(QueryType query, List<T> segments)
   {
     return segments;
-  }
-
-  /**
-   * Creates Ordering for merging partial results
-   */
-  public <X extends Comparable> Ordering<X> getOrdering(boolean descending)
-  {
-    Ordering<X> ordering = Ordering.natural();
-    return descending ? ordering.reverse() : ordering;
   }
 }

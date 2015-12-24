@@ -27,11 +27,8 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.metamx.common.StringUtils;
-import com.metamx.common.guava.MergeSequence;
-import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.emitter.service.ServiceMetricEvent;
-import io.druid.collections.OrderedMergeSequence;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
@@ -109,24 +106,6 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
         );
       }
     };
-  }
-
-  @Override
-  public Sequence<Result<SelectResultValue>> mergeSequences(
-      Sequence<Sequence<Result<SelectResultValue>>> seqOfSequences,
-      boolean descending
-  )
-  {
-    return new OrderedMergeSequence<>(getOrdering(descending), seqOfSequences);
-  }
-
-  @Override
-  public Sequence<Result<SelectResultValue>> mergeSequencesUnordered(
-      Sequence<Sequence<Result<SelectResultValue>>> seqOfSequences,
-      boolean descending
-  )
-  {
-    return new MergeSequence<>(getOrdering(descending), seqOfSequences);
   }
 
   @Override
@@ -270,12 +249,6 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
           }
         };
       }
-
-      @Override
-      public Sequence<Result<SelectResultValue>> mergeSequences(Sequence<Sequence<Result<SelectResultValue>>> seqOfSequences)
-      {
-        return new MergeSequence<Result<SelectResultValue>>(getOrdering(query.isDescending()), seqOfSequences);
-      }
     };
   }
 
@@ -283,11 +256,5 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   public QueryRunner<Result<SelectResultValue>> preMergeQueryDecoration(QueryRunner<Result<SelectResultValue>> runner)
   {
     return intervalChunkingQueryRunnerDecorator.decorate(runner, this);
-  }
-
-  @Override
-  public Ordering<Result<SelectResultValue>> getOrdering(boolean descending)
-  {
-    return super.getOrdering(descending);
   }
 }

@@ -107,20 +107,20 @@ public class TimeSeriesUnionQueryRunnerTest
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
-        new Result<TimeseriesResultValue>(
+        new Result<>(
             new DateTime("2011-04-01"),
             new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of("rows", 52L, "idx", 26476L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
             )
         ),
-        new Result<TimeseriesResultValue>(
+        new Result<>(
             new DateTime("2011-04-02"),
             new TimeseriesResultValue(
                 ImmutableMap.<String, Object>of("rows", 52L, "idx", 23308L, "uniques", QueryRunnerTestHelper.UNIQUES_9)
             )
         )
     );
-    HashMap<String, Object> context = new HashMap<String, Object>();
+    HashMap<String, Object> context = new HashMap<>();
     Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
         runner.run(query, context),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
@@ -156,67 +156,32 @@ public class TimeSeriesUnionQueryRunnerTest
                                   .build();
     QueryToolChest toolChest = new TimeseriesQueryQueryToolChest(QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator());
     final List<Result<TimeseriesResultValue>> ds1 = Lists.newArrayList(
-        new Result<TimeseriesResultValue>(
+        new Result<>(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows",
-                    1L,
-                    "idx",
-                    2L
-                )
-            )
+            new TimeseriesResultValue(ImmutableMap.<String, Object>of("rows", 1L, "idx", 2L))
         ),
-        new Result<TimeseriesResultValue>(
+        new Result<>(
             new DateTime("2011-04-03"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows",
-                    3L,
-                    "idx",
-                    4L
-                )
-            )
+            new TimeseriesResultValue(ImmutableMap.<String, Object>of("rows", 3L, "idx", 4L))
         )
     );
     final List<Result<TimeseriesResultValue>> ds2 = Lists.newArrayList(
-        new Result<TimeseriesResultValue>(
+        new Result<>(
             new DateTime("2011-04-01"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows",
-                    5L,
-                    "idx",
-                    6L
-                )
-            )
+            new TimeseriesResultValue(ImmutableMap.<String, Object>of("rows", 5L, "idx", 6L))
         ),
-        new Result<TimeseriesResultValue>(
+        new Result<>(
             new DateTime("2011-04-02"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows",
-                    7L,
-                    "idx",
-                    8L
-                )
-            )
+            new TimeseriesResultValue(ImmutableMap.<String, Object>of("rows", 7L, "idx", 8L))
         ),
-        new Result<TimeseriesResultValue>(
+        new Result<>(
             new DateTime("2011-04-04"),
-            new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of(
-                    "rows",
-                    9L,
-                    "idx",
-                    10L
-                )
-            )
+            new TimeseriesResultValue(ImmutableMap.<String, Object>of("rows", 9L, "idx", 10L))
         )
     );
 
     QueryRunner mergingrunner = toolChest.mergeResults(
-        new UnionQueryRunner<Result<TimeseriesResultValue>>(
+        new UnionQueryRunner<>(
             new QueryRunner<Result<TimeseriesResultValue>>()
             {
               @Override
@@ -226,13 +191,12 @@ public class TimeSeriesUnionQueryRunnerTest
               )
               {
                 if (query.getDataSource().equals(new TableDataSource("ds1"))) {
-                  return Sequences.simple(query.isDescending() ? Lists.reverse(ds1) : ds1);
+                  return Sequences.simple(descending ? Lists.reverse(ds1) : ds1);
                 } else {
-                  return Sequences.simple(query.isDescending() ? Lists.reverse(ds2) : ds2);
+                  return Sequences.simple(descending ? Lists.reverse(ds2) : ds2);
                 }
               }
-            },
-            toolChest
+            }
         )
     );
 
